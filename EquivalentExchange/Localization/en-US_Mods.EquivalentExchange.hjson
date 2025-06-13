@@ -1,0 +1,20 @@
+# This file will automatically update with entries for new content after a build and reload.
+
+Items: {
+	t: {
+		DisplayName: t
+		Tooltip:
+			'''
+			Template of an item
+			Replacing this tooltip is duty 
+			It's snowing on Mt.Fuji
+			'''
+	}
+
+	PhilosophersStone: {
+		DisplayName: Philosophers Stone
+		Tooltip: Transmute this into that!
+	}
+}
+
+EMCGlobalItem.EMCValue: Mods.EquivalentExchange.EMCGlobalItem.EMCValue

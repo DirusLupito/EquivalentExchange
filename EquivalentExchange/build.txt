@@ -1,0 +1,3 @@
+displayName = Equivalent Exchange
+author = Lupito
+version = 0.1
