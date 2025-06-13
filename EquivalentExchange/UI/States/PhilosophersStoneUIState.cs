@@ -18,18 +18,37 @@ namespace EquivalentExchange.UI.States
         // UI elements
         private UIPanel mainPanel;
         private UIText emcStorageText;
+        // private UIImageButton burnButton;
+
+        // Transmutation circle slots
+        private UIImage[] transmutationSlots;
+        private Item[] transmutationItems;
+
+        // Burn slot at the bottom
         private UIImage burnSlotPanel;
-        private UIImageButton burnButton;
         private Item burnSlot = new Item();
+
+        // Tracking variables
         private bool hoveringBurnSlot = false;
+        private int hoveringTransmutationSlot = -1;
 
         // Constants for UI layout
         private const float PANEL_WIDTH = 500f;
-        private const float PANEL_HEIGHT = 260f;
-        private const float BURN_SLOT_SIZE = 50f;
+        private const float PANEL_HEIGHT = 500f;
+        private const float SLOT_SIZE = 50f;
+        private const int TRANSMUTATION_SLOT_COUNT = 12;
+        private const float CIRCLE_RADIUS = 150f;
 
         public override void OnInitialize()
         {
+            // Initialize arrays
+            transmutationSlots = new UIImage[TRANSMUTATION_SLOT_COUNT];
+            transmutationItems = new Item[TRANSMUTATION_SLOT_COUNT];
+            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
+            {
+                transmutationItems[i] = new Item();
+            }
+
             // Main panel that holds everything
             mainPanel = new UIPanel();
             mainPanel.Width.Set(PANEL_WIDTH, 0f);
@@ -41,51 +60,58 @@ namespace EquivalentExchange.UI.States
             Append(mainPanel);
 
             // Title text
-            var titleText = new UIText("Philosopher's Stone - Transmutation", 1.2f);
+            var titleText = new UIText("Transmutation", 1.2f);
             titleText.HAlign = 0.5f;
             titleText.Top.Set(10f, 0f);
             mainPanel.Append(titleText);
 
-            // EMC display
-            emcStorageText = new UIText("EMC: 0");
-            emcStorageText.HAlign = 0.5f;
-            emcStorageText.Top.Set(40f, 0f);
-            mainPanel.Append(emcStorageText);
+            // Create transmutation slots in a circle
+            float centerX = PANEL_WIDTH / 2;
+            float centerY = PANEL_HEIGHT / 2 - 20f; // Slightly above center to make room for bottom elements
 
-            // Burn slot
+            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
+            {
+                // Calculate position in the circle (starting from top position)
+                float angle = (float)(Math.PI * 2 * i / TRANSMUTATION_SLOT_COUNT - Math.PI / 2);
+                float x = centerX + CIRCLE_RADIUS * (float)Math.Cos(angle) - SLOT_SIZE / 2;
+                float y = centerY + CIRCLE_RADIUS * (float)Math.Sin(angle) - SLOT_SIZE / 2;
+
+                // Create the slot
+                transmutationSlots[i] = new UIImage(TextureAssets.InventoryBack);
+                transmutationSlots[i].Left.Set(x, 0f);
+                transmutationSlots[i].Top.Set(y, 0f);
+                transmutationSlots[i].Width.Set(SLOT_SIZE, 0f);
+                transmutationSlots[i].Height.Set(SLOT_SIZE, 0f);
+                mainPanel.Append(transmutationSlots[i]);
+            }
+
+            // EMC display (bottom left)
+            emcStorageText = new UIText("EMC: 0");
+            emcStorageText.Left.Set(0f, 0f);
+            emcStorageText.Top.Set(PANEL_HEIGHT - 50f, 0f);
+            mainPanel.Append(emcStorageText);
+            // Burn slot (bottom right)
             burnSlotPanel = new UIImage(TextureAssets.InventoryBack);
-            burnSlotPanel.Width.Set(BURN_SLOT_SIZE, 0f);
-            burnSlotPanel.Height.Set(BURN_SLOT_SIZE, 0f);
-            burnSlotPanel.HAlign = 0.5f;
-            burnSlotPanel.Top.Set(80f, 0f);
+            burnSlotPanel.Left.Set(PANEL_WIDTH - SLOT_SIZE - 20f, 0f); // Position it near right edge
+            burnSlotPanel.Top.Set(PANEL_HEIGHT - 70f, 0f);
+            burnSlotPanel.Width.Set(SLOT_SIZE, 0f);
+            burnSlotPanel.Height.Set(SLOT_SIZE, 0f);
             mainPanel.Append(burnSlotPanel);
 
-            // Burn button
-            burnButton = new UIImageButton(ModContent.Request<Texture2D>("Terraria/Images/UI/ButtonPlay"));
-            burnButton.Width.Set(30f, 0f);
-            burnButton.Height.Set(30f, 0f);
-            burnButton.HAlign = 0.5f;
-            burnButton.Top.Set(140f, 0f);
-            burnButton.OnLeftClick += BurnButton_OnClick;
-            mainPanel.Append(burnButton);
-
-            // Burn slot label
-            var burnSlotLabel = new UIText("Burn Slot");
-            burnSlotLabel.HAlign = 0.5f;
-            burnSlotLabel.Top.Set(180f, 0f);
-            mainPanel.Append(burnSlotLabel);
-
-            // Instructions
-            var instructionsText = new UIText("Place items here to convert them to EMC", 0.8f);
-            instructionsText.HAlign = 0.5f;
-            instructionsText.Top.Set(200f, 0f);
-            mainPanel.Append(instructionsText);
+            // // Burn button - to the left of burn slot
+            // burnButton = new UIImageButton(ModContent.Request<Texture2D>("Terraria/Images/UI/ButtonPlay"));
+            // burnButton.Left.Set(burnSlotPanel.Left.Pixels - 40f, 0f); // Position to the left of burn slot
+            // burnButton.Top.Set(PANEL_HEIGHT - 100f, 0f);
+            // burnButton.Width.Set(30f, 0f);
+            // burnButton.Height.Set(30f, 0f);
+            // burnButton.OnLeftClick += BurnButton_OnClick;
+            // mainPanel.Append(burnButton);
         }
 
-        private void BurnButton_OnClick(UIMouseEvent evt, UIElement listeningElement)
-        {
-            BurnCurrentItem();
-        }
+        // private void BurnButton_OnClick(UIMouseEvent evt, UIElement listeningElement)
+        // {
+        //     BurnCurrentItem();
+        // }
 
         private void BurnCurrentItem()
         {
@@ -112,6 +138,12 @@ namespace EquivalentExchange.UI.States
         {
             base.Update(gameTime);
 
+            // If the player is interacting with the UI, set mouseInterface to true
+            if (!Main.LocalPlayer.mouseInterface && mainPanel.ContainsPoint(Main.MouseScreen))
+            {
+                Main.LocalPlayer.mouseInterface = true;
+            }
+
             // Update EMC display
             if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
@@ -127,15 +159,9 @@ namespace EquivalentExchange.UI.States
 
         private void HandleBurnSlot()
         {
-            // Get the rectangle for the burn slot in screen coordinates
-            var burnSlotRect = new Rectangle(
-                (int)(burnSlotPanel.GetDimensions().X),
-                (int)(burnSlotPanel.GetDimensions().Y),
-                (int)BURN_SLOT_SIZE, 
-                (int)BURN_SLOT_SIZE);
 
             // Check if mouse is hovering the burn slot
-            hoveringBurnSlot = burnSlotRect.Contains(Main.mouseX, Main.mouseY);
+            hoveringBurnSlot = burnSlotPanel.ContainsPoint(Main.MouseScreen);
 
             // Handle item interactions
             if (hoveringBurnSlot)
@@ -143,48 +169,53 @@ namespace EquivalentExchange.UI.States
                 // Handle item dropping into burn slot
                 if (Main.mouseItem != null && !Main.mouseItem.IsAir && Main.mouseLeft)
                 {
-                    // If burn slot is empty, move the item there
-                    if (burnSlot.IsAir)
-                    {
-                        burnSlot = Main.mouseItem.Clone();
-                        Main.mouseItem = new Item();
-                    }
-                    // If burn slot has an item, swap them
-                    else
-                    {
-                        var temp = burnSlot.Clone();
-                        burnSlot = Main.mouseItem.Clone();
-                        Main.mouseItem = temp;
-                    }
+                    // // If burn slot is empty, move the item there
+                    // if (burnSlot.IsAir)
+                    // {
+                    //     burnSlot = Main.mouseItem.Clone();
+                    //     Main.mouseItem = new Item();
+                    // }
+                    // // If burn slot has an item, swap them
+                    // else
+                    // {
+                    //     var temp = burnSlot.Clone();
+                    //     burnSlot = Main.mouseItem.Clone();
+                    //     Main.mouseItem = temp;
+                    // }
+
+                    burnSlot = Main.mouseItem.Clone();
+                    Main.mouseItem = new Item();
 
                     // Update the burn slot image
-                    burnSlotPanel.SetImage(TextureAssets.Item[burnSlot.type]);
+                    transmutationSlots[0].SetImage(TextureAssets.Item[burnSlot.type]);
+                    // Burn the item
+                    BurnCurrentItem();
                 }
 
-                // Handle right-click to retrieve item from burn slot
-                if (!burnSlot.IsAir && Main.mouseRight && Main.mouseRightRelease)
-                {
-                    // Put burn slot item into player's hand if hand is empty
-                    if (Main.mouseItem.IsAir)
-                    {
-                        Main.mouseItem = burnSlot.Clone();
-                        burnSlot = new Item();
-                    }
-                    // Otherwise, try to add to player's inventory
-                    else
-                    {
-                        var item = burnSlot.Clone();
-                        burnSlot = new Item();
-                        // if (!Main.LocalPlayer.GetItem(Main.myPlayer, item, GetItemSettings.InventoryUIToInventorySettings))
-                        // {
-                        //     // If inventory is full, put it back in the burn slot
-                        //     burnSlot = item;
-                        // }
-                    }
+                // // Handle right-click to retrieve item from burn slot
+                // if (!burnSlot.IsAir && Main.mouseRight && Main.mouseRightRelease)
+                // {
+                //     // Put burn slot item into player's hand if hand is empty
+                //     if (Main.mouseItem.IsAir)
+                //     {
+                //         Main.mouseItem = burnSlot.Clone();
+                //         burnSlot = new Item();
+                //     }
+                //     // Otherwise, try to add to player's inventory
+                //     else
+                //     {
+                //         var item = burnSlot.Clone();
+                //         burnSlot = new Item();
+                //         // if (!Main.LocalPlayer.GetItem(Main.myPlayer, item, GetItemSettings.InventoryUIToInventorySettings))
+                //         // {
+                //         //     // If inventory is full, put it back in the burn slot
+                //         //     burnSlot = item;
+                //         // }
+                //     }
 
-                    // Update the burn slot image
-                    burnSlotPanel.SetImage(TextureAssets.Item[burnSlot.type]);
-                }
+                //     // Update the burn slot image
+                //     burnSlotPanel.SetImage(TextureAssets.Item[burnSlot.type]);
+                // }
             }
         }
 
@@ -192,14 +223,10 @@ namespace EquivalentExchange.UI.States
         {
             base.DrawSelf(spriteBatch);
 
-            // Draw item name in burn slot only if it is not empty
-            if (!burnSlot.IsAir)
+            // Draw the item name on the mouse if hovering over the burn slot
+            if (burnSlotPanel.ContainsPoint(Main.MouseScreen))
             {
-                // Draw the item name on the mouse if hovering over the burn slot
-                if (burnSlotPanel.ContainsPoint(Main.MouseScreen))
-                {
-                    Main.hoverItemName = burnSlot.Name;
-                }
+                Main.hoverItemName = "Left-click to burn item held by mouse";
             }
         }
     }
