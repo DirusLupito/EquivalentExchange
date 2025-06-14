@@ -10,6 +10,8 @@ using Terraria.ModLoader;
 using Terraria.UI;
 using Terraria.GameContent;
 using Terraria.ModLoader.UI;
+using System.Collections.Generic;
+using EquivalentExchange.Common.GlobalItems;
 
 namespace EquivalentExchange.UI.States
 {
@@ -18,7 +20,6 @@ namespace EquivalentExchange.UI.States
         // UI elements
         private UIPanel mainPanel;
         private UIText emcStorageText;
-        // private UIImageButton burnButton;
 
         // Transmutation circle slots
         private UIImage[] transmutationSlots;
@@ -82,6 +83,11 @@ namespace EquivalentExchange.UI.States
                 transmutationSlots[i].Top.Set(y, 0f);
                 transmutationSlots[i].Width.Set(SLOT_SIZE, 0f);
                 transmutationSlots[i].Height.Set(SLOT_SIZE, 0f);
+                
+                // Store the index to use in the click handler
+                int index = i;
+                transmutationSlots[i].OnLeftClick += (evt, element) => TransmutationSlot_OnClick(index);
+                
                 mainPanel.Append(transmutationSlots[i]);
             }
 
@@ -90,6 +96,7 @@ namespace EquivalentExchange.UI.States
             emcStorageText.Left.Set(0f, 0f);
             emcStorageText.Top.Set(PANEL_HEIGHT - 50f, 0f);
             mainPanel.Append(emcStorageText);
+            
             // Burn slot (bottom right)
             burnSlotPanel = new UIImage(TextureAssets.InventoryBack);
             burnSlotPanel.Left.Set(PANEL_WIDTH - SLOT_SIZE - 20f, 0f); // Position it near right edge
@@ -97,21 +104,7 @@ namespace EquivalentExchange.UI.States
             burnSlotPanel.Width.Set(SLOT_SIZE, 0f);
             burnSlotPanel.Height.Set(SLOT_SIZE, 0f);
             mainPanel.Append(burnSlotPanel);
-
-            // // Burn button - to the left of burn slot
-            // burnButton = new UIImageButton(ModContent.Request<Texture2D>("Terraria/Images/UI/ButtonPlay"));
-            // burnButton.Left.Set(burnSlotPanel.Left.Pixels - 40f, 0f); // Position to the left of burn slot
-            // burnButton.Top.Set(PANEL_HEIGHT - 100f, 0f);
-            // burnButton.Width.Set(30f, 0f);
-            // burnButton.Height.Set(30f, 0f);
-            // burnButton.OnLeftClick += BurnButton_OnClick;
-            // mainPanel.Append(burnButton);
         }
-
-        // private void BurnButton_OnClick(UIMouseEvent evt, UIElement listeningElement)
-        // {
-        //     BurnCurrentItem();
-        // }
 
         private void BurnCurrentItem()
         {
@@ -122,15 +115,50 @@ namespace EquivalentExchange.UI.States
 
                 // Add EMC to player's stored EMC
                 emcPlayer.AddEMC(emcValue);
+                
+                // Learn the item
+                emcPlayer.LearnItem(burnSlot, EMCHelper.GetEMC(burnSlot));
 
                 // Show a message to the player
-                Main.NewText($"Burned {burnSlot.stack} {burnSlot.Name} for {emcValue} EMC.", Color.Orange);
+                Main.NewText($"Learned {burnSlot.Name} ({emcValue} EMC).", Color.LightGreen);
 
                 // Remove the item
                 burnSlot = new Item();
 
                 // Update the burn slot image
                 burnSlotPanel.SetImage(TextureAssets.InventoryBack);
+            }
+        }
+
+        // Handle click on a transmutation slot
+        private void TransmutationSlot_OnClick(int slotIndex)
+        {
+            // Check if there's an item in this slot and player's hands are empty
+            if (!transmutationItems[slotIndex].IsAir && Main.mouseItem.IsAir && 
+                Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+            {
+                Item selectedItem = transmutationItems[slotIndex];
+                long emcCost = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
+                
+                // Check if player has enough EMC
+                if (emcPlayer.TryRemoveEMC(emcCost))
+                {
+                    // Create a new item with stack size of 1
+                    Item newItem = new Item();
+                    newItem.SetDefaults(selectedItem.type);
+                    newItem.stack = 1;
+                    
+                    // Give the item to the player
+                    Main.mouseItem = newItem;
+                    
+                    // Show success message
+                    Main.NewText($"Successfully transmuted {newItem.Name} for {emcCost} EMC.", Color.LightGreen);
+                }
+                else
+                {
+                    // Show error message if not enough EMC
+                    Main.NewText($"Not enough EMC! Need {emcCost} EMC.", Color.Red);
+                }
             }
         }
 
@@ -148,18 +176,64 @@ namespace EquivalentExchange.UI.States
             if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
                 emcStorageText.SetText($"EMC: {emcPlayer.storedEMC}");
+                
+                // Update transmutation slots with the most expensive items
+                UpdateTransmutationSlots(emcPlayer);
             }
 
             // Handle dragging items to the burn slot
             HandleBurnSlot();
 
+            // Track which slot the mouse is hovering over
+            UpdateHoveredSlot();
+
             // Show player inventory
             Main.playerInventory = true;
+        }
+        
+        private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
+        {
+            // Get the 12 most expensive learned items
+            List<LearnedItemInfo> topItems = emcPlayer.GetMostExpensiveItems(TRANSMUTATION_SLOT_COUNT);
+            
+            // Clear previous items
+            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
+            {
+                transmutationItems[i] = new Item();
+                transmutationSlots[i].SetImage(TextureAssets.InventoryBack);
+            }
+            
+            // Add new items to slots
+            for (int i = 0; i < topItems.Count; i++)
+            {
+                // Create item instance
+                Item item = new Item();
+                item.SetDefaults(topItems[i].ItemType);
+                
+                // Store the item
+                transmutationItems[i] = item;
+                
+                // Update the slot image
+                transmutationSlots[i].SetImage(TextureAssets.Item[item.type]);
+            }
+        }
+        
+        private void UpdateHoveredSlot()
+        {
+            hoveringTransmutationSlot = -1;
+            
+            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
+            {
+                if (transmutationSlots[i].ContainsPoint(Main.MouseScreen) && !transmutationItems[i].IsAir)
+                {
+                    hoveringTransmutationSlot = i;
+                    break;
+                }
+            }
         }
 
         private void HandleBurnSlot()
         {
-
             // Check if mouse is hovering the burn slot
             hoveringBurnSlot = burnSlotPanel.ContainsPoint(Main.MouseScreen);
 
@@ -169,20 +243,6 @@ namespace EquivalentExchange.UI.States
                 // Handle item dropping into burn slot
                 if (Main.mouseItem != null && !Main.mouseItem.IsAir && Main.mouseLeft)
                 {
-                    // // If burn slot is empty, move the item there
-                    // if (burnSlot.IsAir)
-                    // {
-                    //     burnSlot = Main.mouseItem.Clone();
-                    //     Main.mouseItem = new Item();
-                    // }
-                    // // If burn slot has an item, swap them
-                    // else
-                    // {
-                    //     var temp = burnSlot.Clone();
-                    //     burnSlot = Main.mouseItem.Clone();
-                    //     Main.mouseItem = temp;
-                    // }
-
                     burnSlot = Main.mouseItem.Clone();
                     Main.mouseItem = new Item();
 
@@ -191,31 +251,6 @@ namespace EquivalentExchange.UI.States
                     // Burn the item
                     BurnCurrentItem();
                 }
-
-                // // Handle right-click to retrieve item from burn slot
-                // if (!burnSlot.IsAir && Main.mouseRight && Main.mouseRightRelease)
-                // {
-                //     // Put burn slot item into player's hand if hand is empty
-                //     if (Main.mouseItem.IsAir)
-                //     {
-                //         Main.mouseItem = burnSlot.Clone();
-                //         burnSlot = new Item();
-                //     }
-                //     // Otherwise, try to add to player's inventory
-                //     else
-                //     {
-                //         var item = burnSlot.Clone();
-                //         burnSlot = new Item();
-                //         // if (!Main.LocalPlayer.GetItem(Main.myPlayer, item, GetItemSettings.InventoryUIToInventorySettings))
-                //         // {
-                //         //     // If inventory is full, put it back in the burn slot
-                //         //     burnSlot = item;
-                //         // }
-                //     }
-
-                //     // Update the burn slot image
-                //     burnSlotPanel.SetImage(TextureAssets.Item[burnSlot.type]);
-                // }
             }
         }
 
@@ -224,9 +259,19 @@ namespace EquivalentExchange.UI.States
             base.DrawSelf(spriteBatch);
 
             // Draw the item name on the mouse if hovering over the burn slot
-            if (burnSlotPanel.ContainsPoint(Main.MouseScreen))
+            if (hoveringBurnSlot)
             {
                 Main.hoverItemName = "Left-click to burn item held by mouse";
+            }
+            // Show item info when hovering over a transmutation slot
+            else if (hoveringTransmutationSlot >= 0)
+            {
+                Item item = transmutationItems[hoveringTransmutationSlot];
+                if (!item.IsAir)
+                {
+                    long emcCost = item.GetGlobalItem<EMCGlobalItem>().emc;
+                    Main.hoverItemName = $"{item.Name} ({emcCost} EMC)";
+                }
             }
         }
     }

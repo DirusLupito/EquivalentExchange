@@ -1,6 +1,10 @@
 using Terraria;
 using Terraria.ModLoader;
 using Terraria.ModLoader.IO;
+using System.Collections.Generic;
+using System;
+using EquivalentExchange.Common.GlobalItems;
+using System.Linq;
 
 namespace EquivalentExchange.Common.Players
 {
@@ -8,16 +12,78 @@ namespace EquivalentExchange.Common.Players
     {
         public long storedEMC = 0;
 
+        // SortedDictionary to store learned items
+        // This data structure prioritizes two operations:
+        // 1. Fast insertion of new items O(log n) complexity (if this doesn't make sense, look up red-black trees https://en.wikipedia.org/wiki/Red%E2%80%93black_tree)
+        // 2. For some c in the set {1, 2, 3, ...} (natural numbers), it allows us to retrieve the c most expensive items learned in O(log n + c) time complexity
+        // As justification, the SortedDictionary uses a custom comparer that sorts items by EMC value in descending order. 
+        // The underlying data structure is a self-balancing binary search tree (typically a Red-Black Tree).
+        // To reach the starting position (the first/highest item), the data structure needs to navigate to the leftmost node in the tree, 
+        // which takes O(log n) operations where n is the total number of items.
+        // Once we have the starting position, we simply need to iterate through c consecutive items. 
+        // In a binary search tree, traversing to the next in-order element is an amortized O(1) operation, 
+        // as each edge in the tree is traversed at most once during a complete traversal.
+
+        // Using a composite key of (EMC value, item type) ensures uniqueness while sorting by EMC
+        // as two different items can in theory have the same EMC value
+        private SortedDictionary<(long EMC, int ItemType), LearnedItemInfo> learnedItems = new SortedDictionary<(long EMC, int ItemType), LearnedItemInfo>(
+            Comparer<(long EMC, int ItemType)>.Create((a, b) =>
+            {
+                // Sort primarily by EMC (descending)
+                int emcCompare = b.EMC.CompareTo(a.EMC); // Note: Reversed for descending order
+                if (emcCompare != 0) return emcCompare;
+                // If EMC is equal, sort by item type (ascending) to ensure uniqueness
+                return a.ItemType.CompareTo(b.ItemType);
+            })
+        );
+
         // Save EMC when the player is saved
         public override void SaveData(TagCompound tag)
         {
             tag.Add("StoredEMC", storedEMC);
+            
+            // Save learned items
+            List<int> learnedItemTypes = new List<int>();
+            List<long> learnedItemEMC = new List<long>();
+            List<string> learnedItemNames = new List<string>();
+            
+            foreach (var item in learnedItems.Values)
+            {
+                learnedItemTypes.Add(item.ItemType);
+                learnedItemEMC.Add(item.EMCValue);
+                learnedItemNames.Add(item.Name);
+            }
+            
+            tag.Add("LearnedItemTypes", learnedItemTypes);
+            tag.Add("LearnedItemEMC", learnedItemEMC);
+            tag.Add("LearnedItemNames", learnedItemNames);
         }
 
         // Load EMC when the player is loaded
         public override void LoadData(TagCompound tag)
         {
             storedEMC = tag.GetLong("StoredEMC");
+            
+            // Load learned items
+            if (tag.ContainsKey("LearnedItemTypes"))
+            {
+                List<int> itemTypes = tag.Get<List<int>>("LearnedItemTypes");
+                List<long> itemEMCs = tag.Get<List<long>>("LearnedItemEMC");
+                List<string> itemNames = tag.Get<List<string>>("LearnedItemNames");
+                
+                learnedItems.Clear();
+                for (int i = 0; i < itemTypes.Count; i++)
+                {
+                    var key = (itemEMCs[i], itemTypes[i]);
+                    var info = new LearnedItemInfo
+                    {
+                        ItemType = itemTypes[i],
+                        EMCValue = itemEMCs[i],
+                        Name = itemNames[i]
+                    };
+                    learnedItems[key] = info;
+                }
+            }
         }
 
         // Add EMC to the player's stored amount
@@ -36,5 +102,48 @@ namespace EquivalentExchange.Common.Players
             }
             return false;
         }
+        
+        // Learn a new item
+        public void LearnItem(Item item, long emcValue)
+        {
+            var key = (emcValue, item.type);
+            
+            // Only add if not already learned
+            if (!learnedItems.ContainsKey(key))
+            {
+                learnedItems[key] = new LearnedItemInfo
+                {
+                    ItemType = item.type,
+                    EMCValue = emcValue,
+                    Name = item.Name
+                };
+            }
+        }
+        
+        // Check if player has learned an item
+        public bool HasLearnedItem(int itemType)
+        {
+            return learnedItems.Values.Any(item => item.ItemType == itemType);
+        }
+        
+        // Get the count most expensive items learned (in terms of EMC)
+        public List<LearnedItemInfo> GetMostExpensiveItems(int count)
+        {
+            return learnedItems.Values.Take(count).ToList();
+        }
+        
+        // Get all learned items
+        public IEnumerable<LearnedItemInfo> GetAllLearnedItems()
+        {
+            return learnedItems.Values;
+        }
+    }
+
+    // Class to store information about learned items
+    public class LearnedItemInfo
+    {
+        public int ItemType { get; set; }
+        public long EMCValue { get; set; }
+        public string Name { get; set; }
     }
 }
