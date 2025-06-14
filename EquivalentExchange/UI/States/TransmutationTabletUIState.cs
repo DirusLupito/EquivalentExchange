@@ -33,6 +33,11 @@ namespace EquivalentExchange.UI.States
         // Tracking variables
         private bool hoveringBurnSlot = false;
         private int hoveringTransmutationSlot = -1;
+        
+        // Right-click tracking
+        private bool isRightMouseDown = false;
+        private int rightClickHoldTime = 0;
+        private int activeRightClickSlot = -1;
 
         // Constants for UI layout
         private const float PANEL_WIDTH = 500f;
@@ -40,6 +45,12 @@ namespace EquivalentExchange.UI.States
         private const float SLOT_SIZE = 50f;
         private const int TRANSMUTATION_SLOT_COUNT = 12;
         private const float CIRCLE_RADIUS = 150f;
+
+        // Constants for right-click item creation timing
+        private const int INITIAL_HOLD_DELAY = 30; // Initial delay (frames)
+        private const int CONTINUOUS_ITEM_DELAY = 5; // Delay between continuous item creation (frames)
+
+        private const double EXPONENTIAL_BASE_ITEM_INCREASE = 1.1; // Base for exponential growth of item creation amount
 
         public override void OnInitialize()
         {
@@ -84,11 +95,14 @@ namespace EquivalentExchange.UI.States
                 transmutationSlots[i].Top.Set(y, 0f);
                 transmutationSlots[i].Width.Set(SLOT_SIZE, 0f);
                 transmutationSlots[i].Height.Set(SLOT_SIZE, 0f);
-                
-                // Store the index to use in the click handler
+
+                // Store the index to use in the click handlers
                 int index = i;
-                transmutationSlots[i].OnLeftClick += (evt, element) => TransmutationSlot_OnClick(index);
-                
+                transmutationSlots[i].OnLeftClick += (evt, element) => TransmutationSlot_OnLeftClick(index);
+                transmutationSlots[i].OnRightClick += (evt, element) => TransmutationSlot_OnRightClick(index);
+                transmutationSlots[i].OnRightMouseDown += (evt, element) => TransmutationSlot_OnRightMouseDown(index);
+                transmutationSlots[i].OnRightMouseUp += (evt, element) => TransmutationSlot_OnRightMouseUp(index);
+
                 mainPanel.Append(transmutationSlots[i]);
             }
 
@@ -97,14 +111,28 @@ namespace EquivalentExchange.UI.States
             emcStorageText.Left.Set(0f, 0f);
             emcStorageText.Top.Set(PANEL_HEIGHT - 50f, 0f);
             mainPanel.Append(emcStorageText);
-            
+
             // Burn slot (bottom right)
             burnSlotPanel = new UIImage(TextureAssets.InventoryBack);
             burnSlotPanel.Left.Set(PANEL_WIDTH - SLOT_SIZE - 20f, 0f); // Position it near right edge
             burnSlotPanel.Top.Set(PANEL_HEIGHT - 70f, 0f);
             burnSlotPanel.Width.Set(SLOT_SIZE, 0f);
             burnSlotPanel.Height.Set(SLOT_SIZE, 0f);
+            burnSlotPanel.OnLeftClick += (evt, element) => BurnSlot_OnLeftClick();
             mainPanel.Append(burnSlotPanel);
+        }
+
+        // Handles updating the displayed items in the transmutation slot as well as the displayed EMC value
+        private void updateDisplay()
+        {
+            if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+            {
+                // Update EMC display
+                emcStorageText.SetText($"EMC: {emcPlayer.storedEMC}");
+                
+                // Update transmutation slots with the most expensive items
+                UpdateTransmutationSlots(emcPlayer);
+            }
         }
 
         private void BurnCurrentItem()
@@ -116,51 +144,142 @@ namespace EquivalentExchange.UI.States
 
                 // Add EMC to player's stored EMC
                 emcPlayer.AddEMC(emcValue);
-                
+
                 // Learn the item
                 emcPlayer.LearnItem(burnSlot, EMCHelper.GetEMC(burnSlot));
 
                 // Show a message to the player
-                Main.NewText($"Learned {burnSlot.Name} ({emcValue} EMC).", Color.LightGreen);
+                Main.NewText($"Burned {burnSlot.stack} x {burnSlot.Name} for {emcValue} EMC.", Color.LightGreen);
 
                 // Remove the item
                 burnSlot = new Item();
-
-                // Update the burn slot image
-                burnSlotPanel.SetImage(TextureAssets.InventoryBack);
             }
         }
 
         // Handle click on a transmutation slot
-        private void TransmutationSlot_OnClick(int slotIndex)
+        private void TransmutationSlot_OnLeftClick(int slotIndex)
         {
             // Check if there's an item in this slot and player's hands are empty
-            if (!transmutationItems[slotIndex].IsAir && Main.mouseItem.IsAir && 
+            if (!transmutationItems[slotIndex].IsAir && Main.mouseItem.IsAir &&
+                Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+            {
+                Item selectedItem = transmutationItems[slotIndex];
+                long emcCostPerItem = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
+
+                // Calculate how many items the player can afford
+                int maxStackSize = selectedItem.maxStack;
+                // Handle the case where emcCostPerItem is zero (if it is, then affordableCount should be the max stack size)
+                int affordableCount = emcCostPerItem > 0 ?
+                    (int)Math.Min(maxStackSize, emcPlayer.storedEMC / emcCostPerItem) : maxStackSize;
+
+
+                // Make sure we can create at least one
+                if (affordableCount > 0)
+                {
+                    // Calculate total EMC cost
+                    long totalEmcCost = emcCostPerItem * affordableCount;
+
+                    // Create a new item with appropriate stack size
+                    Item newItem = new Item();
+                    newItem.SetDefaults(selectedItem.type);
+                    newItem.stack = affordableCount;
+
+                    // Give the item to the player
+                    Main.mouseItem = newItem;
+
+                    // Remove the EMC
+                    emcPlayer.TryRemoveEMC(totalEmcCost);
+
+                    // Show success message
+                    Main.NewText($"Successfully transmuted {affordableCount}x {newItem.Name} for {totalEmcCost} EMC.", Color.LightGreen);
+                }
+                else
+                {
+                    // Show error message if not enough EMC
+                    Main.NewText($"Not enough EMC! Need {emcCostPerItem} EMC.", Color.Red);
+                }
+            }
+        }
+
+        // Single right-click handler (creates a single item)
+        private void TransmutationSlot_OnRightClick(int slotIndex)
+        {
+            CreateSingleItem(slotIndex);
+        }
+        
+        // Right mouse down handler (for continuous item creation)
+        private void TransmutationSlot_OnRightMouseDown(int slotIndex)
+        {
+            // Start by just creating one
+            CreateSingleItem(slotIndex);
+
+            isRightMouseDown = true;
+            activeRightClickSlot = slotIndex;
+            rightClickHoldTime = 0;
+        }
+        
+        // Called when right mouse button is released
+        private void TransmutationSlot_OnRightMouseUp(int slotIndex)
+        {
+            isRightMouseDown = false;
+            activeRightClickSlot = -1;
+            rightClickHoldTime = 0;
+        }
+
+        // Helper method to create a single item
+        private bool CreateSingleItem(int slotIndex)
+        {
+            return CreateItem(slotIndex, 1);
+        }
+
+        // Helper method to create amount many items
+        private bool CreateItem(int slotIndex, int amount)
+        {
+            if (!transmutationItems[slotIndex].IsAir && 
                 Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
                 Item selectedItem = transmutationItems[slotIndex];
                 long emcCost = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
                 
                 // Check if player has enough EMC
-                if (emcPlayer.TryRemoveEMC(emcCost))
+                if (emcPlayer.storedEMC >= emcCost)
                 {
-                    // Create a new item with stack size of 1
-                    Item newItem = new Item();
-                    newItem.SetDefaults(selectedItem.type);
-                    newItem.stack = 1;
+                    if (Main.mouseItem.IsAir)
+                    {
+                        // Create a new item with stack size of 1
+                        Item newItem = new Item();
+                        newItem.SetDefaults(selectedItem.type);
+                        newItem.stack = amount;
+                        
+                        // Give the item to the player
+                        Main.mouseItem = newItem;
+                    }
+                    else if (Main.mouseItem.type == selectedItem.type && Main.mouseItem.stack < Main.mouseItem.maxStack)
+                    {
+                        // Add to existing stack
+                        Main.mouseItem.stack += Math.Min(amount, Main.mouseItem.maxStack - Main.mouseItem.stack);
+                    }
+                    else
+                    {
+                        // Player is holding a different item or max stack reached
+                        return false;
+                    }
                     
-                    // Give the item to the player
-                    Main.mouseItem = newItem;
-                    
-                    // Show success message
-                    Main.NewText($"Successfully transmuted {newItem.Name} for {emcCost} EMC.", Color.LightGreen);
+                    // Remove EMC
+                    emcPlayer.TryRemoveEMC(emcCost);
+                    return true;
                 }
                 else
                 {
-                    // Show error message if not enough EMC
-                    Main.NewText($"Not enough EMC! Need {emcCost} EMC.", Color.Red);
+                    // Not enough EMC
+                    if (emcPlayer.storedEMC < emcCost)
+                    {
+                        Main.NewText($"Not enough EMC! Need {emcCost} EMC.", Color.Red);
+                    }
+                    return false;
                 }
             }
+            return false;
         }
 
         public override void Update(GameTime gameTime)
@@ -182,20 +301,26 @@ namespace EquivalentExchange.UI.States
                 Main.LocalPlayer.mouseInterface = true;
             }
 
-            // Update EMC display
-            if (emcPlayer != null)
+            // Handle right-click holding for continuous item creation
+            if (isRightMouseDown && activeRightClickSlot >= 0)
             {
-                emcStorageText.SetText($"EMC: {emcPlayer.storedEMC}");
-                
-                // Update transmutation slots with the most expensive items
-                UpdateTransmutationSlots(emcPlayer);
-            }
+                rightClickHoldTime++;
 
-            // Handle dragging items to the burn slot
-            HandleBurnSlot();
+                // After initial delay, start creating items regularly
+                if (rightClickHoldTime > INITIAL_HOLD_DELAY &&
+                    rightClickHoldTime % CONTINUOUS_ITEM_DELAY == 0)
+                {
+                    // Exponentially increase the amount created as the player holds the right mouse button for longer periods
+                    int amount = (int)Math.Pow(EXPONENTIAL_BASE_ITEM_INCREASE, (rightClickHoldTime - INITIAL_HOLD_DELAY) / CONTINUOUS_ITEM_DELAY);
+                    CreateItem(activeRightClickSlot, amount);
+                }
+            }
 
             // Track which slot the mouse is hovering over
             UpdateHoveredSlot();
+            
+            // Update the display of transmutation slots and EMC value
+            updateDisplay();
         }
         
         private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
@@ -209,18 +334,25 @@ namespace EquivalentExchange.UI.States
                 transmutationItems[i] = new Item();
                 transmutationSlots[i].SetImage(TextureAssets.InventoryBack);
             }
-            
+
             // Add new items to slots
             for (int i = 0; i < topItems.Count; i++)
             {
                 // Create item instance
                 Item item = new Item();
                 item.SetDefaults(topItems[i].ItemType);
-                
+
                 // Store the item
                 transmutationItems[i] = item;
-                
+
                 // Update the slot image
+                //
+                // IMPORTANT: Note that the vanilla entries in Item, Npc, Projectile, Gore, Wall, Tile, ItemFlame, Background, 
+                // and all of the player equipment and hair related fields are not necessarily loaded. 
+                // Use the Main.LoadItem(int) or similar methods before attempting to use those texture assets. 
+                // Modded content in these arrays are always preloaded during mod loading. 
+                //
+                Main.instance.LoadItem(item.type);
                 transmutationSlots[i].SetImage(TextureAssets.Item[item.type]);
             }
         }
@@ -239,25 +371,16 @@ namespace EquivalentExchange.UI.States
             }
         }
 
-        private void HandleBurnSlot()
+        private void BurnSlot_OnLeftClick()
         {
-            // Check if mouse is hovering the burn slot
-            hoveringBurnSlot = burnSlotPanel.ContainsPoint(Main.MouseScreen);
-
-            // Handle item interactions
-            if (hoveringBurnSlot)
+            // Handle item dropping into burn slot
+            if (Main.mouseItem != null && !Main.mouseItem.IsAir)
             {
-                // Handle item dropping into burn slot
-                if (Main.mouseItem != null && !Main.mouseItem.IsAir && Main.mouseLeft)
-                {
-                    burnSlot = Main.mouseItem.Clone();
-                    Main.mouseItem = new Item();
+                burnSlot = Main.mouseItem.Clone();
+                Main.mouseItem = new Item();
 
-                    // Update the burn slot image
-                    transmutationSlots[0].SetImage(TextureAssets.Item[burnSlot.type]);
-                    // Burn the item
-                    BurnCurrentItem();
-                }
+                // Burn the item
+                BurnCurrentItem();
             }
         }
 
