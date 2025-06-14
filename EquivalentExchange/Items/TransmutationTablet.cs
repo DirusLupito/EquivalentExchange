@@ -6,7 +6,7 @@ using Terraria.GameContent.Creative;
 
 namespace EquivalentExchange.Items
 {
-    public class PhilosophersStone : ModItem
+    public class TransmutationTablet : ModItem
     {
         public override void SetStaticDefaults()
         {   
@@ -25,6 +25,19 @@ namespace EquivalentExchange.Items
             Item.useAnimation = 20;
             Item.useTurn = true;
             Item.autoReuse = false;
+        }
+
+        public override bool CanRightClick() => true;
+
+        public override void RightClick(Player player)
+        {
+            // Toggle the UI when right-clicked
+            EMCUI.TransmutationTabletVisible = !EMCUI.TransmutationTabletVisible;
+        }
+
+        public override bool ConsumeItem(Player player)
+        {
+            return false; // Prevent item consumption on use
         }
 
         public override void AddRecipes()

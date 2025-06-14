@@ -11,27 +11,27 @@ namespace EquivalentExchange.Common.Systems
     public class EMCUI : ModSystem
     {
         // UI state instance
-        public static PhilosophersStoneUIState philosophersStoneUI;
+        public static TransmutationTabletUIState transmutationTabletUI;
         
         // UserInterface instance that holds the UI state
-        public static UserInterface philosophersStoneInterface;
+        public static UserInterface transmutationTabletInterface;
         
         // Flag to track if the UI is visible
-        private static bool _philosophersStoneVisible = false;
+        private static bool _transmutationTabletVisible = false;
         
-        public static bool PhilosophersStoneVisible
+        public static bool TransmutationTabletVisible
         {
-            get => _philosophersStoneVisible;
+            get => _transmutationTabletVisible;
             set
             {
-                if (_philosophersStoneVisible != value)
+                if (_transmutationTabletVisible != value)
                 {
-                    _philosophersStoneVisible = value;
+                    _transmutationTabletVisible = value;
                     
-                    if (_philosophersStoneVisible)
-                        philosophersStoneInterface?.SetState(philosophersStoneUI);
+                    if (_transmutationTabletVisible)
+                        transmutationTabletInterface?.SetState(transmutationTabletUI);
                     else
-                        philosophersStoneInterface?.SetState(null);
+                        transmutationTabletInterface?.SetState(null);
                 }
             }
         }
@@ -41,29 +41,29 @@ namespace EquivalentExchange.Common.Systems
             if (!Main.dedServ)
             {
                 // Initialize the UI
-                philosophersStoneUI = new PhilosophersStoneUIState();
-                philosophersStoneUI.Activate();
+                transmutationTabletUI = new TransmutationTabletUIState();
+                transmutationTabletUI.Activate();
                 
                 // Initialize the UserInterface
-                philosophersStoneInterface = new UserInterface();
+                transmutationTabletInterface = new UserInterface();
                 
                 // Initially hide the UI
-                PhilosophersStoneVisible = false;
+                TransmutationTabletVisible = false;
             }
         }
 
         public override void Unload()
         {
             // Clean up references
-            philosophersStoneUI = null;
-            philosophersStoneInterface = null;
+            transmutationTabletUI = null;
+            transmutationTabletInterface = null;
         }
 
         public override void UpdateUI(GameTime gameTime)
         {
             // Update the UI if it's visible
-            if (_philosophersStoneVisible && philosophersStoneInterface != null)
-                philosophersStoneInterface.Update(gameTime);
+            if (_transmutationTabletVisible && transmutationTabletInterface != null)
+                transmutationTabletInterface.Update(gameTime);
         }
 
         public override void ModifyInterfaceLayers(List<GameInterfaceLayer> layers)
@@ -75,8 +75,8 @@ namespace EquivalentExchange.Common.Systems
                 layers.Insert(inventoryIndex + 1, new LegacyGameInterfaceLayer(
                     "EquivalentExchange: Philosophers Stone UI",
                     delegate {
-                        if (PhilosophersStoneVisible && philosophersStoneInterface != null)
-                            philosophersStoneInterface.Draw(Main.spriteBatch, new GameTime());
+                        if (TransmutationTabletVisible && transmutationTabletInterface != null)
+                            transmutationTabletInterface.Draw(Main.spriteBatch, new GameTime());
                         return true;
                     },
                     InterfaceScaleType.UI)

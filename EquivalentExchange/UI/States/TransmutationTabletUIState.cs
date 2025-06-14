@@ -15,7 +15,7 @@ using EquivalentExchange.Common.GlobalItems;
 
 namespace EquivalentExchange.UI.States
 {
-    public class PhilosophersStoneUIState : UIState
+    public class TransmutationTabletUIState : UIState
     {
         // UI elements
         private UIPanel mainPanel;

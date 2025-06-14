@@ -15,6 +15,11 @@ Items: {
 		DisplayName: Philosophers Stone
 		Tooltip: Transmute this into that!
 	}
+
+	TransmutationTablet: {
+		DisplayName: Transmutation Tablet
+		Tooltip: ""
+	}
 }
 
 EMCGlobalItem.EMCValue: Mods.EquivalentExchange.EMCGlobalItem.EMCValue
