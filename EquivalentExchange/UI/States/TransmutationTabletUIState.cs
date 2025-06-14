@@ -12,6 +12,7 @@ using Terraria.GameContent;
 using Terraria.ModLoader.UI;
 using System.Collections.Generic;
 using EquivalentExchange.Common.GlobalItems;
+using EquivalentExchange.Common.Systems;
 
 namespace EquivalentExchange.UI.States
 {
@@ -165,6 +166,15 @@ namespace EquivalentExchange.UI.States
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
+            Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer);
+
+            // If the player's inventory is not open, also close the transmutation tablet UI
+            if (!Main.playerInventory && emcPlayer != null)
+            {
+                // Hide the UI if inventory is closed
+                EMCUI.TransmutationTabletVisible = false;
+                return;
+            }
 
             // If the player is interacting with the UI, set mouseInterface to true
             if (!Main.LocalPlayer.mouseInterface && mainPanel.ContainsPoint(Main.MouseScreen))
@@ -173,7 +183,7 @@ namespace EquivalentExchange.UI.States
             }
 
             // Update EMC display
-            if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+            if (emcPlayer != null)
             {
                 emcStorageText.SetText($"EMC: {emcPlayer.storedEMC}");
                 
@@ -186,9 +196,6 @@ namespace EquivalentExchange.UI.States
 
             // Track which slot the mouse is hovering over
             UpdateHoveredSlot();
-
-            // Show player inventory
-            Main.playerInventory = true;
         }
         
         private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
