@@ -49,6 +49,9 @@ namespace EquivalentExchange.Common.Players
             
             foreach (var item in learnedItems.Values)
             {
+                // Skip items that have already been learned (that is, if the same type has already been added, continue)
+                if (learnedItemTypes.Contains(item.ItemType))
+                    continue;
                 learnedItemTypes.Add(item.ItemType);
                 learnedItemEMC.Add(item.EMCValue);
                 learnedItemNames.Add(item.Name);
@@ -70,10 +73,16 @@ namespace EquivalentExchange.Common.Players
                 List<int> itemTypes = tag.Get<List<int>>("LearnedItemTypes");
                 List<long> itemEMCs = tag.Get<List<long>>("LearnedItemEMC");
                 List<string> itemNames = tag.Get<List<string>>("LearnedItemNames");
+
+                List<int> itemTypesAddedSoFar = new List<int>();
                 
                 learnedItems.Clear();
                 for (int i = 0; i < itemTypes.Count; i++)
                 {
+                    // Skip item types that are already learned. Skips even if the emc value is different
+                    if (itemTypesAddedSoFar.Contains(itemTypes[i]))
+                        continue;
+
                     var key = (itemEMCs[i], itemTypes[i]);
                     var info = new LearnedItemInfo
                     {
@@ -82,6 +91,7 @@ namespace EquivalentExchange.Common.Players
                         Name = itemNames[i]
                     };
                     learnedItems[key] = info;
+                    itemTypesAddedSoFar.Add(itemTypes[i]);
                 }
             }
         }
