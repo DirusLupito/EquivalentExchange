@@ -1,1 +1,2 @@
-Modify this file with a description of your mod.
+This mod serves as a port for the Equivalent Exchange mod from Minecraft to Terraria.
+While it does not add most items, it does add the core mechanic of EMC to Terraria via the Transmutation Tablet.
