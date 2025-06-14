@@ -160,6 +160,21 @@ namespace EquivalentExchange.Common.Players
         {
             return learnedItems.Count;
         }
+
+        // Unlearn an item (remove it from learned items)
+        public bool UnlearnItem(int itemType)
+        {
+            // Find the entry with matching item type
+            var itemToRemove = learnedItems.FirstOrDefault(pair => pair.Value.ItemType == itemType);
+            
+            // If found, remove it
+            if (itemToRemove.Key != default)
+            {
+                learnedItems.Remove(itemToRemove.Key);
+                return true;
+            }
+            return false;
+        }
     }
 
     // Class to store information about learned items

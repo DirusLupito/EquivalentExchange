@@ -29,15 +29,25 @@ namespace EquivalentExchange.UI.States
         private int currentPage = 0;
 
         // Transmutation circle slots
+        private UIImage[] transmutationSlotContainers; // New container array
         private UIImage[] transmutationSlots;
         private Item[] transmutationItems;
 
         // Burn slot at the bottom
+        private UIImage burnSlotContainer; // New container
         private UIImage burnSlotPanel;
         private Item burnSlot = new Item();
 
+        // Unlearn slot (bottom middle right)
+        private UIImage unlearnSlotPanel;
+        private Item unlearnSlot = new Item();
+
+        // Unlearn slot container picture
+        private UIImage unlearnSlotPanelContainerPicture;
+
         // Tracking variables
         private bool hoveringBurnSlot = false;
+        private bool hoveringUnlearnSlot = false;
         private int hoveringTransmutationSlot = -1;
         
         // Right-click tracking
@@ -48,10 +58,10 @@ namespace EquivalentExchange.UI.States
         // Constants for UI layout
         private const float PANEL_WIDTH = 500f;
         private const float PANEL_HEIGHT = 500f;
-        private const float SLOT_SIZE = 50f;
+        private float SLOT_WIDTH = TextureAssets.InventoryBack.Width(); // Size of each slot based on inventory back texture
+        private float SLOT_HEIGHT = TextureAssets.InventoryBack.Height(); // Size of each slot based on inventory back texture
         private const int TRANSMUTATION_SLOT_COUNT = 12;
         private const float CIRCLE_RADIUS = 150f;
-        private const float BUTTON_SIZE = 30f;
 
         // Constants for right-click item creation timing
         private const int INITIAL_HOLD_DELAY = 30; // Initial delay (frames)
@@ -62,6 +72,7 @@ namespace EquivalentExchange.UI.States
         public override void OnInitialize()
         {
             // Initialize arrays
+            transmutationSlotContainers = new UIImage[TRANSMUTATION_SLOT_COUNT]; // Initialize containers
             transmutationSlots = new UIImage[TRANSMUTATION_SLOT_COUNT];
             transmutationItems = new Item[TRANSMUTATION_SLOT_COUNT];
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
@@ -90,29 +101,42 @@ namespace EquivalentExchange.UI.States
 
             // Create transmutation slots in a circle
             float centerX = PANEL_WIDTH / 2;
-            float centerY = PANEL_HEIGHT / 2 - 20f; // Slightly above center to make room for bottom elements
+            float centerY = PANEL_HEIGHT / 2;
 
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
                 // Calculate position in the circle (starting from top position)
                 float angle = (float)(Math.PI * 2 * i / TRANSMUTATION_SLOT_COUNT - Math.PI / 2);
-                float x = centerX + CIRCLE_RADIUS * (float)Math.Cos(angle) - SLOT_SIZE / 2;
-                float y = centerY + CIRCLE_RADIUS * (float)Math.Sin(angle) - SLOT_SIZE / 2;
+                float x = centerX + CIRCLE_RADIUS * (float)Math.Cos(angle) - SLOT_WIDTH / 2f - 10;
+                float y = centerY + CIRCLE_RADIUS * (float)Math.Sin(angle) - SLOT_HEIGHT / 2f;
 
-                // Create the slot
-                transmutationSlots[i] = new UIImage(TextureAssets.InventoryBack);
-                transmutationSlots[i].Left.Set(x, 0f);
-                transmutationSlots[i].Top.Set(y, 0f);
-                transmutationSlots[i].Width.Set(SLOT_SIZE, 0f);
-                transmutationSlots[i].Height.Set(SLOT_SIZE, 0f);
+                // Create the slot container
+                transmutationSlotContainers[i] = new UIImage(TextureAssets.InventoryBack);
+                transmutationSlotContainers[i].Left.Set(x, 0f);
+                transmutationSlotContainers[i].Top.Set(y, 0f);
+                transmutationSlotContainers[i].Width.Set(SLOT_WIDTH, 0f);
+                transmutationSlotContainers[i].Height.Set(SLOT_HEIGHT, 0f);
 
                 // Store the index to use in the click handlers
                 int index = i;
+                transmutationSlotContainers[i].OnLeftClick += (evt, element) => TransmutationSlot_OnLeftClick(index);
+                transmutationSlotContainers[i].OnRightClick += (evt, element) => TransmutationSlot_OnRightClick(index);
+                transmutationSlotContainers[i].OnRightMouseDown += (evt, element) => TransmutationSlot_OnRightMouseDown(index);
+                transmutationSlotContainers[i].OnRightMouseUp += (evt, element) => TransmutationSlot_OnRightMouseUp(index);
+
+                mainPanel.Append(transmutationSlotContainers[i]);
+
+                // Create the actual item slot (no image yet)
+                transmutationSlots[i] = new UIImage(TextureAssets.InventoryBack);
+                transmutationSlots[i].Left.Set(0, 0f);  // Will be positioned properly in UpdateTransmutationSlots
+                transmutationSlots[i].Top.Set(0, 0f);
+                transmutationSlots[i].Width.Set(SLOT_WIDTH, 0f);
+                transmutationSlots[i].Height.Set(SLOT_HEIGHT, 0f);
+                // Also add the event listeners for the items themselves, since otherwise the space that is occupied by the icon will not trigger the click events
                 transmutationSlots[i].OnLeftClick += (evt, element) => TransmutationSlot_OnLeftClick(index);
                 transmutationSlots[i].OnRightClick += (evt, element) => TransmutationSlot_OnRightClick(index);
                 transmutationSlots[i].OnRightMouseDown += (evt, element) => TransmutationSlot_OnRightMouseDown(index);
                 transmutationSlots[i].OnRightMouseUp += (evt, element) => TransmutationSlot_OnRightMouseUp(index);
-
                 mainPanel.Append(transmutationSlots[i]);
             }
 
@@ -128,33 +152,85 @@ namespace EquivalentExchange.UI.States
             pageInfoText.Top.Set(PANEL_HEIGHT - 50f, 0f);
             mainPanel.Append(pageInfoText);
 
-            // Burn slot (bottom right)
-            burnSlotPanel = new UIImage(TextureAssets.InventoryBack);
-            burnSlotPanel.Left.Set(PANEL_WIDTH - SLOT_SIZE - 20f, 0f); // Position it near right edge
-            burnSlotPanel.Top.Set(PANEL_HEIGHT - 70f, 0f);
-            burnSlotPanel.Width.Set(SLOT_SIZE, 0f);
-            burnSlotPanel.Height.Set(SLOT_SIZE, 0f);
+            // Burn slot container (bottom right)
+            burnSlotContainer = new UIImage(TextureAssets.InventoryBack);
+            burnSlotContainer.Left.Set(PANEL_WIDTH - SLOT_WIDTH - 20f, 0f);
+            burnSlotContainer.Top.Set(PANEL_HEIGHT - 70f, 0f);
+            burnSlotContainer.Width.Set(SLOT_WIDTH, 0f);
+            burnSlotContainer.Height.Set(SLOT_HEIGHT, 0f);
+            burnSlotContainer.OnLeftClick += (evt, element) => BurnSlot_OnLeftClick();
+            mainPanel.Append(burnSlotContainer);
+
+            // Calculate center of burn slot container
+            float burnSlotCenterX = burnSlotContainer.Left.Pixels + SLOT_WIDTH / 2f;
+            float burnSlotCenterY = burnSlotContainer.Top.Pixels + SLOT_HEIGHT / 2f;
+
+            ReLogic.Content.Asset<Texture2D> burnSlotTexture = TextureAssets.SunOrb;
+
+            // Figure out how to position burn slot image inside burn slot container
+            float burnSlotImageLeft = burnSlotCenterX - burnSlotTexture.Width() / 2f;
+            float burnSlotImageTop = burnSlotCenterY - burnSlotTexture.Height() / 2f;
+
+            // The picture of the burn slot
+            burnSlotPanel = new UIImage(burnSlotTexture);
+            burnSlotPanel.Left.Set(burnSlotImageLeft, 0f);
+            burnSlotPanel.Top.Set(burnSlotImageTop, 0f);
+            burnSlotPanel.Width.Set(burnSlotTexture.Width(), 0f);
+            burnSlotPanel.Height.Set(burnSlotTexture.Height(), 0f);
+            // Also add the event listeners for the burn slot itself, since otherwise the space that is occupied by the icon will not trigger the click events
             burnSlotPanel.OnLeftClick += (evt, element) => BurnSlot_OnLeftClick();
             mainPanel.Append(burnSlotPanel);
+
+            // Box image containing the unlearn slot
+            unlearnSlotPanelContainerPicture = new UIImage(TextureAssets.InventoryBack);
+            unlearnSlotPanelContainerPicture.Left.Set(PANEL_WIDTH - SLOT_WIDTH - 20f - SLOT_WIDTH - 10f, 0f);
+            unlearnSlotPanelContainerPicture.Top.Set(PANEL_HEIGHT - 70f, 0f);
+            unlearnSlotPanelContainerPicture.Width.Set(SLOT_WIDTH, 0f);
+            unlearnSlotPanelContainerPicture.Height.Set(SLOT_HEIGHT, 0f);
+            unlearnSlotPanelContainerPicture.OnLeftClick += (evt, element) => UnlearnSlot_OnLeftClick();
+            mainPanel.Append(unlearnSlotPanelContainerPicture);
+
+            // Figure out the center position of the unlearnSlotPanelContainerPicture (.left will set the left edge while .Top will set the top edge)
+            // Moreover, the actual width and height as seen by the player depend on the texture
+            float unlearnSlotPanelContainerPictureCenterX = unlearnSlotPanelContainerPicture.Left.Pixels + SLOT_WIDTH / 2f;
+            float unlearnSlotPanelContainerPictureCenterY = unlearnSlotPanelContainerPicture.Top.Pixels + SLOT_HEIGHT / 2f;
+
+            ReLogic.Content.Asset<Texture2D> unlearnSlotTexture = TextureAssets.MapDeath;
+
+            // Since this is also the intended center position of the unlearnSlotPanel, we will use it to derive the left and top positions of the unlearnSlotPanel
+            float unlearnSlotPanelLeft = unlearnSlotPanelContainerPictureCenterX - unlearnSlotTexture.Width() / 2f;
+            float unlearnSlotPanelTop = unlearnSlotPanelContainerPictureCenterY - unlearnSlotTexture.Height() / 2f;
+
+            // Unlearn slot (bottom middle right, centered inside the unlearn slot container)
+            unlearnSlotPanel = new UIImage(unlearnSlotTexture);
+            unlearnSlotPanel.Left.Set(unlearnSlotPanelLeft, 0f);
+            unlearnSlotPanel.Top.Set(unlearnSlotPanelTop, 0f);
+            unlearnSlotPanel.Width.Set(unlearnSlotTexture.Width(), 0f);
+            unlearnSlotPanel.Height.Set(unlearnSlotTexture.Height(), 0f);
+            // Also add the event listeners for the unlearn slot itself, since otherwise the space that is occupied by the icon will not trigger the click events
+            unlearnSlotPanel.OnLeftClick += (evt, element) => UnlearnSlot_OnLeftClick();
+            mainPanel.Append(unlearnSlotPanel);
         }
 
         private void AddNavigationButtons()
         {
+            var realButtonWidth = Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Back").Value.Width;
+            var realButtonHeight = Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Back").Value.Height;
             // Previous page button (left arrow)
             prevPageButton = new UIImageButton(Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Back"));
-            prevPageButton.Left.Set(50f, 0f);
-            prevPageButton.Top.Set(PANEL_HEIGHT / 2, 0f);
-            prevPageButton.Width.Set(BUTTON_SIZE, 0f);
-            prevPageButton.Height.Set(BUTTON_SIZE, 0f);
+            prevPageButton.Left.Set(realButtonWidth / 2, 0f);
+            prevPageButton.Top.Set(PANEL_HEIGHT / 2 - realButtonHeight / 2, 0f);
+            prevPageButton.Width.Set(realButtonWidth, 0f);
+            prevPageButton.Height.Set(realButtonHeight, 0f);
             prevPageButton.OnLeftClick += (evt, element) => NavigatePrevPage();
             mainPanel.Append(prevPageButton);
 
             // Next page button (right arrow)
             nextPageButton = new UIImageButton(Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Forward"));
-            nextPageButton.Left.Set(PANEL_WIDTH - 50f - BUTTON_SIZE, 0f);
-            nextPageButton.Top.Set(PANEL_HEIGHT / 2, 0f);
-            nextPageButton.Width.Set(BUTTON_SIZE, 0f);
-            nextPageButton.Height.Set(BUTTON_SIZE, 0f);
+            nextPageButton.Left.Set(PANEL_WIDTH - 2 * realButtonWidth, 0f);
+            nextPageButton.Top.Set(PANEL_HEIGHT / 2 - realButtonHeight / 2, 0f);
+            nextPageButton.Width.Set(realButtonWidth, 0f);
+            nextPageButton.Height.Set(realButtonHeight, 0f);
             nextPageButton.OnLeftClick += (evt, element) => NavigateNextPage();
             mainPanel.Append(nextPageButton);
         }
@@ -287,9 +363,6 @@ namespace EquivalentExchange.UI.States
         // Right mouse down handler (for continuous item creation)
         private void TransmutationSlot_OnRightMouseDown(int slotIndex)
         {
-            // Start by just creating one
-            CreateSingleItem(slotIndex);
-
             isRightMouseDown = true;
             activeRightClickSlot = slotIndex;
             rightClickHoldTime = 0;
@@ -395,7 +468,7 @@ namespace EquivalentExchange.UI.States
 
             // Track which slot the mouse is hovering over
             UpdateHoveredSlot();
-            
+
             // Update the display of transmutation slots and EMC value
             updateDisplay();
         }
@@ -409,7 +482,8 @@ namespace EquivalentExchange.UI.States
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
                 transmutationItems[i] = new Item();
-                transmutationSlots[i].SetImage(TextureAssets.InventoryBack);
+                // Make item slots invisible initially
+                transmutationSlots[i].ImageScale = 0f;
             }
 
             // Add new items to slots
@@ -430,21 +504,50 @@ namespace EquivalentExchange.UI.States
                 // Modded content in these arrays are always preloaded during mod loading. 
                 //
                 Main.instance.LoadItem(item.type);
+                
+                // Calculate the center of the container
+                float containerCenterX = transmutationSlotContainers[i].Left.Pixels + SLOT_WIDTH / 2f;
+                float containerCenterY = transmutationSlotContainers[i].Top.Pixels + SLOT_HEIGHT / 2f;
+
+                // Center the item texture inside the container
+                float itemWidth = TextureAssets.Item[item.type].Width();
+                float itemHeight = TextureAssets.Item[item.type].Height();
+                float itemLeft = containerCenterX - itemWidth / 2f;
+                float itemTop = containerCenterY - itemHeight / 2f;
+                
+                // Set position and image
                 transmutationSlots[i].SetImage(TextureAssets.Item[item.type]);
+                transmutationSlots[i].Left.Set(itemLeft, 0f);
+                transmutationSlots[i].Top.Set(itemTop, 0f);
+                transmutationSlots[i].ImageScale = 1f; // Make visible
             }
         }
         
         private void UpdateHoveredSlot()
         {
             hoveringTransmutationSlot = -1;
+            hoveringBurnSlot = false;
+            hoveringUnlearnSlot = false;
             
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
-                if (transmutationSlots[i].ContainsPoint(Main.MouseScreen) && !transmutationItems[i].IsAir)
+                if (transmutationSlotContainers[i].ContainsPoint(Main.MouseScreen) && !transmutationItems[i].IsAir)
                 {
                     hoveringTransmutationSlot = i;
-                    break;
+                    return;
                 }
+            }
+            
+            if (burnSlotContainer.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringBurnSlot = true;
+                return;
+            }
+            
+            if (unlearnSlotPanelContainerPicture.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringUnlearnSlot = true;
+                return;
             }
         }
 
@@ -461,16 +564,47 @@ namespace EquivalentExchange.UI.States
             }
         }
 
+        private void UnlearnSlot_OnLeftClick()
+        {
+            // Handle item dropping into unlearn slot
+            if (Main.mouseItem != null && !Main.mouseItem.IsAir)
+            {
+                // Store a copy of the item (we won't destroy it)
+                unlearnSlot = Main.mouseItem.Clone();
+                
+                // Attempt to unlearn the item
+                if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+                {
+                    if (emcPlayer.UnlearnItem(unlearnSlot.type))
+                    {
+                        // Show success message
+                        Main.NewText($"Unlearned {unlearnSlot.Name}. You can no longer transmute this item.", Color.Orange);
+                    }
+                    else
+                    {
+                        // Show message if item wasn't learned in the first place
+                        Main.NewText($"You haven't learned {unlearnSlot.Name} yet.", Color.Red);
+                    }
+                }
+                
+                // Clear the slot but keep the player's item
+                unlearnSlot = new Item();
+            }
+        }
+
         protected override void DrawSelf(SpriteBatch spriteBatch)
         {
             base.DrawSelf(spriteBatch);
 
-            // Draw the item name on the mouse if hovering over the burn slot
+            // Draw the item name on the mouse if hovering over slots
             if (hoveringBurnSlot)
             {
                 Main.hoverItemName = "Left-click to burn item held by mouse";
             }
-            // Show item info when hovering over a transmutation slot
+            else if (hoveringUnlearnSlot)
+            {
+                Main.hoverItemName = "Left-click to unlearn item held by mouse";
+            }
             else if (hoveringTransmutationSlot >= 0)
             {
                 Item item = transmutationItems[hoveringTransmutationSlot];
