@@ -147,6 +147,19 @@ namespace EquivalentExchange.Common.Players
         {
             return learnedItems.Values;
         }
+
+        // Get a specific page of expensive items learned (in terms of EMC)
+        public List<LearnedItemInfo> GetMostExpensiveItemsPaginated(int pageSize, int pageNumber)
+        {
+            // Skip (pageNumber * pageSize) items, then take pageSize items
+            return learnedItems.Values.Skip(pageNumber * pageSize).Take(pageSize).ToList();
+        }
+
+        // Get total count of learned items for pagination purposes
+        public int GetTotalLearnedItemCount()
+        {
+            return learnedItems.Count;
+        }
     }
 
     // Class to store information about learned items

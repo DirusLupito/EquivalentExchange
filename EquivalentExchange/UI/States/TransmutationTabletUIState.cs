@@ -21,6 +21,12 @@ namespace EquivalentExchange.UI.States
         // UI elements
         private UIPanel mainPanel;
         private UIText emcStorageText;
+        private UIImageButton nextPageButton;
+        private UIImageButton prevPageButton;
+        private UIText pageInfoText;
+
+        // Current page for transmutation items
+        private int currentPage = 0;
 
         // Transmutation circle slots
         private UIImage[] transmutationSlots;
@@ -45,6 +51,7 @@ namespace EquivalentExchange.UI.States
         private const float SLOT_SIZE = 50f;
         private const int TRANSMUTATION_SLOT_COUNT = 12;
         private const float CIRCLE_RADIUS = 150f;
+        private const float BUTTON_SIZE = 30f;
 
         // Constants for right-click item creation timing
         private const int INITIAL_HOLD_DELAY = 30; // Initial delay (frames)
@@ -77,6 +84,9 @@ namespace EquivalentExchange.UI.States
             titleText.HAlign = 0.5f;
             titleText.Top.Set(10f, 0f);
             mainPanel.Append(titleText);
+
+            // Add navigation buttons
+            AddNavigationButtons();
 
             // Create transmutation slots in a circle
             float centerX = PANEL_WIDTH / 2;
@@ -112,6 +122,12 @@ namespace EquivalentExchange.UI.States
             emcStorageText.Top.Set(PANEL_HEIGHT - 50f, 0f);
             mainPanel.Append(emcStorageText);
 
+            // Page info text (center bottom)
+            pageInfoText = new UIText("Page 1");
+            pageInfoText.HAlign = 0.5f;
+            pageInfoText.Top.Set(PANEL_HEIGHT - 50f, 0f);
+            mainPanel.Append(pageInfoText);
+
             // Burn slot (bottom right)
             burnSlotPanel = new UIImage(TextureAssets.InventoryBack);
             burnSlotPanel.Left.Set(PANEL_WIDTH - SLOT_SIZE - 20f, 0f); // Position it near right edge
@@ -122,6 +138,64 @@ namespace EquivalentExchange.UI.States
             mainPanel.Append(burnSlotPanel);
         }
 
+        private void AddNavigationButtons()
+        {
+            // Previous page button (left arrow)
+            prevPageButton = new UIImageButton(Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Back"));
+            prevPageButton.Left.Set(50f, 0f);
+            prevPageButton.Top.Set(PANEL_HEIGHT / 2, 0f);
+            prevPageButton.Width.Set(BUTTON_SIZE, 0f);
+            prevPageButton.Height.Set(BUTTON_SIZE, 0f);
+            prevPageButton.OnLeftClick += (evt, element) => NavigatePrevPage();
+            mainPanel.Append(prevPageButton);
+
+            // Next page button (right arrow)
+            nextPageButton = new UIImageButton(Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Forward"));
+            nextPageButton.Left.Set(PANEL_WIDTH - 50f - BUTTON_SIZE, 0f);
+            nextPageButton.Top.Set(PANEL_HEIGHT / 2, 0f);
+            nextPageButton.Width.Set(BUTTON_SIZE, 0f);
+            nextPageButton.Height.Set(BUTTON_SIZE, 0f);
+            nextPageButton.OnLeftClick += (evt, element) => NavigateNextPage();
+            mainPanel.Append(nextPageButton);
+        }
+
+        private void NavigatePrevPage()
+        {
+            if (currentPage > 0)
+            {
+                currentPage--;
+                UpdateTransmutationSlots(Main.LocalPlayer.GetModPlayer<EMCPlayer>());
+                UpdatePageInfo();
+            }
+        }
+
+        private void NavigateNextPage()
+        {
+            EMCPlayer emcPlayer = Main.LocalPlayer.GetModPlayer<EMCPlayer>();
+            int totalItems = emcPlayer.GetTotalLearnedItemCount();
+            int totalPages = (int)Math.Ceiling(totalItems / (float)TRANSMUTATION_SLOT_COUNT);
+            
+            if (currentPage < totalPages - 1)
+            {
+                currentPage++;
+                UpdateTransmutationSlots(emcPlayer);
+                UpdatePageInfo();
+            }
+        }
+
+        private void UpdatePageInfo()
+        {
+            EMCPlayer emcPlayer = Main.LocalPlayer.GetModPlayer<EMCPlayer>();
+            int totalItems = emcPlayer.GetTotalLearnedItemCount();
+            int totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (float)TRANSMUTATION_SLOT_COUNT));
+            
+            pageInfoText.SetText($"Page {currentPage + 1}/{totalPages}");
+            
+            // Enable/disable buttons based on current page
+            prevPageButton.SetVisibility(1f, currentPage > 0 ? 1f : 0.5f);
+            nextPageButton.SetVisibility(1f, currentPage < totalPages - 1 ? 1f : 0.5f);
+        }
+
         // Handles updating the displayed items in the transmutation slot as well as the displayed EMC value
         private void updateDisplay()
         {
@@ -130,8 +204,11 @@ namespace EquivalentExchange.UI.States
                 // Update EMC display
                 emcStorageText.SetText($"EMC: {emcPlayer.storedEMC}");
                 
-                // Update transmutation slots with the most expensive items
+                // Update transmutation slots with the current page of items
                 UpdateTransmutationSlots(emcPlayer);
+                
+                // Update page info
+                UpdatePageInfo();
             }
         }
 
@@ -325,8 +402,8 @@ namespace EquivalentExchange.UI.States
         
         private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
         {
-            // Get the 12 most expensive learned items
-            List<LearnedItemInfo> topItems = emcPlayer.GetMostExpensiveItems(TRANSMUTATION_SLOT_COUNT);
+            // Get the current page of items
+            List<LearnedItemInfo> pageItems = emcPlayer.GetMostExpensiveItemsPaginated(TRANSMUTATION_SLOT_COUNT, currentPage);
             
             // Clear previous items
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
@@ -336,11 +413,11 @@ namespace EquivalentExchange.UI.States
             }
 
             // Add new items to slots
-            for (int i = 0; i < topItems.Count; i++)
+            for (int i = 0; i < pageItems.Count; i++)
             {
                 // Create item instance
                 Item item = new Item();
-                item.SetDefaults(topItems[i].ItemType);
+                item.SetDefaults(pageItems[i].ItemType);
 
                 // Store the item
                 transmutationItems[i] = item;
@@ -402,6 +479,15 @@ namespace EquivalentExchange.UI.States
                     long emcCost = item.GetGlobalItem<EMCGlobalItem>().emc;
                     Main.hoverItemName = $"{item.Name} ({emcCost} EMC)";
                 }
+            }
+            // Show tooltip for navigation buttons
+            else if (prevPageButton.IsMouseHovering)
+            {
+                Main.hoverItemName = "Previous Page";
+            }
+            else if (nextPageButton.IsMouseHovering)
+            {
+                Main.hoverItemName = "Next Page";
             }
         }
     }
