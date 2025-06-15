@@ -1,6 +1,5 @@
 using EquivalentExchange.UI.States;
 using Microsoft.Xna.Framework;
-using System;
 using System.Collections.Generic;
 using Terraria;
 using Terraria.ModLoader;
@@ -10,11 +9,13 @@ namespace EquivalentExchange.Common.Systems
 {
     public class EMCUI : ModSystem
     {
-        // UI state instance
+        // UI state instances
         public static TransmutationTabletUIState transmutationTabletUI;
+        public static TransmutationTabletItemsUIState transmutationTabletItemsUI;
         
-        // UserInterface instance that holds the UI state
+        // UserInterface instances that hold the UI states
         public static UserInterface transmutationTabletInterface;
+        public static UserInterface transmutationTabletItemsInterface;
         
         // Flag to track if the UI is visible
         private static bool _transmutationTabletVisible = false;
@@ -29,9 +30,15 @@ namespace EquivalentExchange.Common.Systems
                     _transmutationTabletVisible = value;
                     
                     if (_transmutationTabletVisible)
+                    {
                         transmutationTabletInterface?.SetState(transmutationTabletUI);
+                        transmutationTabletItemsInterface?.SetState(transmutationTabletItemsUI);
+                    }
                     else
+                    {
                         transmutationTabletInterface?.SetState(null);
+                        transmutationTabletItemsInterface?.SetState(null);
+                    }
                 }
             }
         }
@@ -40,14 +47,19 @@ namespace EquivalentExchange.Common.Systems
         {
             if (!Main.dedServ)
             {
-                // Initialize the UI
+                // Initialize the main UI
                 transmutationTabletUI = new TransmutationTabletUIState();
                 transmutationTabletUI.Activate();
                 
-                // Initialize the UserInterface
-                transmutationTabletInterface = new UserInterface();
+                // Initialize the items UI (passing the main UI as reference)
+                transmutationTabletItemsUI = new TransmutationTabletItemsUIState(transmutationTabletUI);
+                transmutationTabletItemsUI.Activate();
                 
-                // Initially hide the UI
+                // Initialize the UserInterfaces
+                transmutationTabletInterface = new UserInterface();
+                transmutationTabletItemsInterface = new UserInterface();
+                
+                // Initially hide the UIs
                 TransmutationTabletVisible = false;
             }
         }
@@ -56,14 +68,19 @@ namespace EquivalentExchange.Common.Systems
         {
             // Clean up references
             transmutationTabletUI = null;
+            transmutationTabletItemsUI = null;
             transmutationTabletInterface = null;
+            transmutationTabletItemsInterface = null;
         }
 
         public override void UpdateUI(GameTime gameTime)
         {
-            // Update the UI if it's visible
-            if (_transmutationTabletVisible && transmutationTabletInterface != null)
-                transmutationTabletInterface.Update(gameTime);
+            // Update the UIs if they're visible
+            if (_transmutationTabletVisible)
+            {
+                transmutationTabletInterface?.Update(gameTime);
+                transmutationTabletItemsInterface?.Update(gameTime);
+            }
         }
 
         public override void ModifyInterfaceLayers(List<GameInterfaceLayer> layers)
@@ -71,12 +88,23 @@ namespace EquivalentExchange.Common.Systems
             int inventoryIndex = layers.FindIndex(layer => layer.Name.Equals("Vanilla: Inventory"));
             if (inventoryIndex != -1)
             {
-                // Insert our UI layer right after the inventory
+                // Insert the main UI layer right after the inventory
                 layers.Insert(inventoryIndex + 1, new LegacyGameInterfaceLayer(
-                    "EquivalentExchange: Philosophers Stone UI",
+                    "EquivalentExchange: Transmutation Tablet UI",
                     delegate {
-                        if (TransmutationTabletVisible && transmutationTabletInterface != null)
-                            transmutationTabletInterface.Draw(Main.spriteBatch, new GameTime());
+                        if (TransmutationTabletVisible)
+                            transmutationTabletInterface?.Draw(Main.spriteBatch, new GameTime());
+                        return true;
+                    },
+                    InterfaceScaleType.UI)
+                );
+                
+                // Insert the items UI layer above the main UI
+                layers.Insert(inventoryIndex + 2, new LegacyGameInterfaceLayer(
+                    "EquivalentExchange: Transmutation Tablet Items",
+                    delegate {
+                        if (TransmutationTabletVisible)
+                            transmutationTabletItemsInterface?.Draw(Main.spriteBatch, new GameTime());
                         return true;
                     },
                     InterfaceScaleType.UI)
