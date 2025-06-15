@@ -5,12 +5,13 @@ using System.Collections.Generic;
 using System;
 using EquivalentExchange.Common.GlobalItems;
 using System.Linq;
+using EquivalentExchange.Common.Utilities;
 
 namespace EquivalentExchange.Common.Players
 {
     public class EMCPlayer : ModPlayer
     {
-        public long storedEMC = 0;
+        public RationalNumber storedEMC = RationalNumber.Zero;
 
         // SortedDictionary to store learned items
         // This data structure prioritizes two operations:
@@ -26,8 +27,8 @@ namespace EquivalentExchange.Common.Players
 
         // Using a composite key of (EMC value, item type) ensures uniqueness while sorting by EMC
         // as two different items can in theory have the same EMC value
-        private SortedDictionary<(long EMC, int ItemType), LearnedItemInfo> learnedItems = new SortedDictionary<(long EMC, int ItemType), LearnedItemInfo>(
-            Comparer<(long EMC, int ItemType)>.Create((a, b) =>
+        private SortedDictionary<(RationalNumber EMC, int ItemType), LearnedItemInfo> learnedItems = new SortedDictionary<(RationalNumber EMC, int ItemType), LearnedItemInfo>(
+            Comparer<(RationalNumber EMC, int ItemType)>.Create((a, b) =>
             {
                 // Sort primarily by EMC (descending)
                 int emcCompare = b.EMC.CompareTo(a.EMC); // Note: Reversed for descending order
@@ -40,70 +41,94 @@ namespace EquivalentExchange.Common.Players
         // Save EMC when the player is saved
         public override void SaveData(TagCompound tag)
         {
-            tag.Add("StoredEMC", storedEMC);
+            // Save storedEMC as numerator/denominator
+            tag.Add("StoredEMCNumerator", storedEMC.Numerator);
+            tag.Add("StoredEMCDenominator", storedEMC.Denominator);
             
             // Save learned items
             List<int> learnedItemTypes = new List<int>();
-            List<long> learnedItemEMC = new List<long>();
+            List<long> learnedItemEMCNumerators = new List<long>();
+            List<long> learnedItemEMCDenominators = new List<long>();
             List<string> learnedItemNames = new List<string>();
             
             foreach (var item in learnedItems.Values)
             {
-                // Skip items that have already been learned (that is, if the same type has already been added, continue)
+                // Skip items that have already been learned
                 if (learnedItemTypes.Contains(item.ItemType))
                     continue;
                 learnedItemTypes.Add(item.ItemType);
-                learnedItemEMC.Add(item.EMCValue);
+                learnedItemEMCNumerators.Add(item.EMCValue.Numerator);
+                learnedItemEMCDenominators.Add(item.EMCValue.Denominator);
                 learnedItemNames.Add(item.Name);
             }
             
             tag.Add("LearnedItemTypes", learnedItemTypes);
-            tag.Add("LearnedItemEMC", learnedItemEMC);
+            tag.Add("LearnedItemEMCNumerators", learnedItemEMCNumerators);
+            tag.Add("LearnedItemEMCDenominators", learnedItemEMCDenominators);
             tag.Add("LearnedItemNames", learnedItemNames);
         }
 
         // Load EMC when the player is loaded
         public override void LoadData(TagCompound tag)
         {
-            storedEMC = tag.GetLong("StoredEMC");
+            // Load the stored EMC
+            if (tag.ContainsKey("StoredEMCNumerator") && tag.ContainsKey("StoredEMCDenominator"))
+            {
+                long numerator = tag.GetLong("StoredEMCNumerator");
+                long denominator = tag.GetLong("StoredEMCDenominator");
+                storedEMC = new RationalNumber(numerator, denominator);
+            }
+            else if (tag.ContainsKey("StoredEMC"))
+            {
+                // Backward compatibility
+                storedEMC = new RationalNumber(tag.GetLong("StoredEMC"), 1);
+            }
             
             // Load learned items
             if (tag.ContainsKey("LearnedItemTypes"))
             {
                 List<int> itemTypes = tag.Get<List<int>>("LearnedItemTypes");
-                List<long> itemEMCs = tag.Get<List<long>>("LearnedItemEMC");
-                List<string> itemNames = tag.Get<List<string>>("LearnedItemNames");
-
-                List<int> itemTypesAddedSoFar = new List<int>();
                 
-                learnedItems.Clear();
-                for (int i = 0; i < itemTypes.Count; i++)
+                // Check which format of data we have
+                if (tag.ContainsKey("LearnedItemEMCNumerators") && tag.ContainsKey("LearnedItemEMCDenominators"))
                 {
-                    // Skip item types that are already learned. Skips even if the emc value is different
-                    if (itemTypesAddedSoFar.Contains(itemTypes[i]))
-                        continue;
+                    // New format with RationalNumber data
+                    List<long> itemEMCNumerators = tag.Get<List<long>>("LearnedItemEMCNumerators");
+                    List<long> itemEMCDenominators = tag.Get<List<long>>("LearnedItemEMCDenominators");
+                    List<string> itemNames = tag.Get<List<string>>("LearnedItemNames");
 
-                    var key = (itemEMCs[i], itemTypes[i]);
-                    var info = new LearnedItemInfo
+                    List<int> itemTypesAddedSoFar = new List<int>();
+                    
+                    learnedItems.Clear();
+                    for (int i = 0; i < itemTypes.Count; i++)
                     {
-                        ItemType = itemTypes[i],
-                        EMCValue = itemEMCs[i],
-                        Name = itemNames[i]
-                    };
-                    learnedItems[key] = info;
-                    itemTypesAddedSoFar.Add(itemTypes[i]);
+                        // Skip item types that are already learned
+                        if (itemTypesAddedSoFar.Contains(itemTypes[i]))
+                            continue;
+
+                        var emcValue = new RationalNumber(itemEMCNumerators[i], itemEMCDenominators[i]);
+                        var key = (emcValue, itemTypes[i]);
+                        var info = new LearnedItemInfo
+                        {
+                            ItemType = itemTypes[i],
+                            EMCValue = emcValue,
+                            Name = itemNames[i]
+                        };
+                        learnedItems[key] = info;
+                        itemTypesAddedSoFar.Add(itemTypes[i]);
+                    }
                 }
             }
         }
 
         // Add EMC to the player's stored amount
-        public void AddEMC(long value)
+        public void AddEMC(RationalNumber value)
         {
             storedEMC += value;
         }
 
         // Remove EMC from the player's stored amount (with check to prevent negative values)
-        public bool TryRemoveEMC(long value)
+        public bool TryRemoveEMC(RationalNumber value)
         {
             if (storedEMC >= value)
             {
@@ -114,12 +139,13 @@ namespace EquivalentExchange.Common.Players
         }
         
         // Learn a new item
-        public void LearnItem(Item item, long emcValue)
+        public void LearnItem(Item item, RationalNumber emcValue)
         {
             var key = (emcValue, item.type);
-            
+
             // Only add if not already learned
-            if (!learnedItems.ContainsKey(key))
+            // Also don't learn unlearnable items (e.g. items 0 emc value)
+            if (!learnedItems.ContainsKey(key) && emcValue > RationalNumber.Zero)
             {
                 learnedItems[key] = new LearnedItemInfo
                 {
@@ -198,7 +224,7 @@ namespace EquivalentExchange.Common.Players
     public class LearnedItemInfo
     {
         public int ItemType { get; set; }
-        public long EMCValue { get; set; }
+        public RationalNumber EMCValue { get; set; } = RationalNumber.Zero;
         public string Name { get; set; }
     }
 }

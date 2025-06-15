@@ -293,7 +293,7 @@ namespace EquivalentExchange.UI.States
             if (!burnSlot.IsAir && Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
                 // Calculate EMC value of the item
-                long emcValue = EMCHelper.ConvertItemToEMC(burnSlot);
+                RationalNumber emcValue = EMCHelper.ConvertItemToEMC(burnSlot);
 
                 // Add EMC to player's stored EMC
                 emcPlayer.AddEMC(emcValue);
@@ -317,20 +317,19 @@ namespace EquivalentExchange.UI.States
                 Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
                 Item selectedItem = transmutationItems[slotIndex];
-                long emcCostPerItem = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
+                RationalNumber emcCostPerItem = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
 
                 // Calculate how many items the player can afford
                 int maxStackSize = selectedItem.maxStack;
-                // Handle the case where emcCostPerItem is zero (if it is, then affordableCount should be the max stack size)
-                int affordableCount = emcCostPerItem > 0 ?
-                    (int)Math.Min(maxStackSize, emcPlayer.storedEMC / emcCostPerItem) : maxStackSize;
-
+                // Handle the case where emcCostPerItem is zero
+                int affordableCount = emcCostPerItem > RationalNumber.Zero ?
+                    (int)Math.Min(maxStackSize, (double)(emcPlayer.storedEMC / emcCostPerItem)) : maxStackSize;
 
                 // Make sure we can create at least one
                 if (affordableCount > 0)
                 {
                     // Calculate total EMC cost
-                    long totalEmcCost = emcCostPerItem * affordableCount;
+                    RationalNumber totalEmcCost = emcCostPerItem * affordableCount;
 
                     // Create a new item with appropriate stack size
                     Item newItem = new Item();
@@ -389,7 +388,7 @@ namespace EquivalentExchange.UI.States
                 Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
                 Item selectedItem = transmutationItems[slotIndex];
-                long emcCost = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
+                RationalNumber emcCost = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
                 
                 // Check if player has enough EMC
                 if (emcPlayer.storedEMC >= emcCost)
@@ -416,7 +415,7 @@ namespace EquivalentExchange.UI.States
                     }
                     
                     // Remove EMC
-                    emcPlayer.TryRemoveEMC(emcCost);
+                    emcPlayer.TryRemoveEMC(emcCost * amount);
                     return true;
                 }
                 else
@@ -533,6 +532,12 @@ namespace EquivalentExchange.UI.States
             // Handle item dropping into burn slot
             if (Main.mouseItem != null && !Main.mouseItem.IsAir)
             {
+                // If the item has a zero or negative EMC value, do not allow burning
+                if (EMCHelper.GetEMC(Main.mouseItem) <= RationalNumber.Zero)
+                {
+                    Main.NewText("You cannot transmute this item.", Color.Red);
+                    return;
+                }
                 burnSlot = Main.mouseItem.Clone();
                 Main.mouseItem = new Item();
 
@@ -587,7 +592,7 @@ namespace EquivalentExchange.UI.States
                 Item item = transmutationItems[hoveringTransmutationSlot];
                 if (!item.IsAir)
                 {
-                    long emcCost = item.GetGlobalItem<EMCGlobalItem>().emc;
+                    RationalNumber emcCost = item.GetGlobalItem<EMCGlobalItem>().emc;
                     Main.hoverItemName = $"{item.Name} ({emcCost} EMC)";
                 }
             }
