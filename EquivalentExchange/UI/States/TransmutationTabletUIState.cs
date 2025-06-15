@@ -10,13 +10,14 @@ using Terraria.GameContent;
 using System.Collections.Generic;
 using EquivalentExchange.Common.GlobalItems;
 using EquivalentExchange.Common.Systems;
+using EquivalentExchange.UI.Elements;
 
 namespace EquivalentExchange.UI.States
 {
     public class TransmutationTabletUIState : UIState
     {
         // UI elements
-        public UIPanel mainPanel;
+        private UIPanel mainPanel;
         private UIText emcStorageText;
         private UIImageButton nextPageButton;
         private UIImageButton prevPageButton;
@@ -25,13 +26,10 @@ namespace EquivalentExchange.UI.States
         // Current page for transmutation items
         private int currentPage = 0;
 
-        // Transmutation item circle slot containers
-        private UIImage[] transmutationSlotContainers;
+        // Transmutation circle slots
+        private UIImage[] transmutationSlotContainers; // Container images
+        private UIItemImage[] transmutationSlots; // Item display elements
         private Item[] transmutationItems;
-
-        // Public properties for the item drawing layer
-        public Item[] TransmutationItems => transmutationItems;
-        public int HoveringTransmutationSlot => hoveringTransmutationSlot;
 
         // Burn slot at the bottom
         private UIImage burnSlotContainer;
@@ -45,7 +43,9 @@ namespace EquivalentExchange.UI.States
         // Unlearn slot container picture
         private UIImage unlearnSlotPanelContainerPicture;
 
-        // Mouse position tracking variables;
+        // Tracking variables
+        private bool hoveringBurnSlot = false;
+        private bool hoveringUnlearnSlot = false;
         private int hoveringTransmutationSlot = -1;
         
         // Right-click tracking
@@ -56,10 +56,10 @@ namespace EquivalentExchange.UI.States
         // Constants for UI layout
         private const float PANEL_WIDTH = 500f;
         private const float PANEL_HEIGHT = 500f;
-        public float SLOT_WIDTH = TextureAssets.InventoryBack.Width(); // Size of each slot based on inventory back texture
-        public float SLOT_HEIGHT = TextureAssets.InventoryBack.Height(); // Size of each slot based on inventory back texture
-        public const int TRANSMUTATION_SLOT_COUNT = 12;
-        public const float CIRCLE_RADIUS = 150f;
+        private float SLOT_WIDTH = TextureAssets.InventoryBack.Width(); 
+        private float SLOT_HEIGHT = TextureAssets.InventoryBack.Height();
+        private const int TRANSMUTATION_SLOT_COUNT = 12;
+        private const float CIRCLE_RADIUS = 150f;
 
         // Constants for right-click item creation timing
         private const int INITIAL_HOLD_DELAY = 30; // Initial delay (frames)
@@ -71,7 +71,7 @@ namespace EquivalentExchange.UI.States
         {
             // Initialize arrays
             transmutationSlotContainers = new UIImage[TRANSMUTATION_SLOT_COUNT];
-            // Remove transmutationSlots initialization
+            transmutationSlots = new UIItemImage[TRANSMUTATION_SLOT_COUNT];
             transmutationItems = new Item[TRANSMUTATION_SLOT_COUNT];
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
@@ -108,14 +108,14 @@ namespace EquivalentExchange.UI.States
                 float x = centerX + CIRCLE_RADIUS * (float)Math.Cos(angle) - SLOT_WIDTH / 2f - 10;
                 float y = centerY + CIRCLE_RADIUS * (float)Math.Sin(angle) - SLOT_HEIGHT / 2f;
 
-                // Create the slot container
+                // Create the slot container (background)
                 transmutationSlotContainers[i] = new UIImage(TextureAssets.InventoryBack);
                 transmutationSlotContainers[i].Left.Set(x, 0f);
                 transmutationSlotContainers[i].Top.Set(y, 0f);
                 transmutationSlotContainers[i].Width.Set(SLOT_WIDTH, 0f);
                 transmutationSlotContainers[i].Height.Set(SLOT_HEIGHT, 0f);
 
-                // Store the index to use in the click handlers
+                // Store the index for event handlers
                 int index = i;
                 transmutationSlotContainers[i].OnLeftClick += (evt, element) => TransmutationSlot_OnLeftClick(index);
                 transmutationSlotContainers[i].OnRightClick += (evt, element) => TransmutationSlot_OnRightClick(index);
@@ -123,6 +123,21 @@ namespace EquivalentExchange.UI.States
                 transmutationSlotContainers[i].OnRightMouseUp += (evt, element) => TransmutationSlot_OnRightMouseUp(index);
 
                 mainPanel.Append(transmutationSlotContainers[i]);
+
+                // Create the item display element
+                transmutationSlots[i] = new UIItemImage();
+                transmutationSlots[i].Left.Set(x, 0f);
+                transmutationSlots[i].Top.Set(y, 0f);
+                transmutationSlots[i].Width.Set(SLOT_WIDTH, 0f);
+                transmutationSlots[i].Height.Set(SLOT_HEIGHT, 0f);
+                
+                // Add event handlers to the item image as well
+                transmutationSlots[i].OnLeftClick += (evt, element) => TransmutationSlot_OnLeftClick(index);
+                transmutationSlots[i].OnRightClick += (evt, element) => TransmutationSlot_OnRightClick(index);
+                transmutationSlots[i].OnRightMouseDown += (evt, element) => TransmutationSlot_OnRightMouseDown(index);
+                transmutationSlots[i].OnRightMouseUp += (evt, element) => TransmutationSlot_OnRightMouseUp(index);
+                
+                mainPanel.Append(transmutationSlots[i]);
             }
 
             // EMC display (bottom left)
@@ -467,6 +482,7 @@ namespace EquivalentExchange.UI.States
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
                 transmutationItems[i] = new Item();
+                transmutationSlots[i].Item = new Item(); // Update UIItemImage with empty item
             }
 
             // Add new items to slots
@@ -479,14 +495,16 @@ namespace EquivalentExchange.UI.States
                 // Store the item
                 transmutationItems[i] = item;
                 
-                // Make sure the item texture is loaded
-                Main.instance.LoadItem(item.type);
+                // Update the UIItemImage with the new item
+                transmutationSlots[i].Item = item;
             }
         }
         
         private void UpdateHoveredSlot()
         {
             hoveringTransmutationSlot = -1;
+            hoveringBurnSlot = false;
+            hoveringUnlearnSlot = false;
             
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
@@ -495,6 +513,18 @@ namespace EquivalentExchange.UI.States
                     hoveringTransmutationSlot = i;
                     return;
                 }
+            }
+            
+            if (burnSlotContainer.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringBurnSlot = true;
+                return;
+            }
+            
+            if (unlearnSlotPanelContainerPicture.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringUnlearnSlot = true;
+                return;
             }
         }
 
@@ -539,27 +569,37 @@ namespace EquivalentExchange.UI.States
             }
         }
 
-        // Method to get the center position of a slot for drawing
-        public Vector2 GetTransmutationSlotCenter(int index)
+        protected override void DrawSelf(SpriteBatch spriteBatch)
         {
-            if (index < 0 || index >= transmutationSlotContainers.Length)
-                return Vector2.Zero;
+            base.DrawSelf(spriteBatch);
 
-            // Get the dimensions of the container
-            float containerLeft = transmutationSlotContainers[index].Left.Pixels;
-            float containerTop = transmutationSlotContainers[index].Top.Pixels;
-            float containerWidth = transmutationSlotContainers[index].Width.Pixels;
-            float containerHeight = transmutationSlotContainers[index].Height.Pixels;
-            
-            // Get panel position to calculate absolute position
-            float panelLeft = mainPanel.Left.Pixels;
-            float panelTop = mainPanel.Top.Pixels;
-            
-            // Calculate the center of the container in screen coordinates
-            return new Vector2(
-                panelLeft + containerLeft + containerWidth / 2f,
-                panelTop + containerTop + containerHeight / 2f
-            );
+            // Draw the item name on the mouse if hovering over slots
+            if (hoveringBurnSlot)
+            {
+                Main.hoverItemName = "Left-click to burn item held by mouse";
+            }
+            else if (hoveringUnlearnSlot)
+            {
+                Main.hoverItemName = "Left-click to unlearn item held by mouse";
+            }
+            else if (hoveringTransmutationSlot >= 0)
+            {
+                Item item = transmutationItems[hoveringTransmutationSlot];
+                if (!item.IsAir)
+                {
+                    long emcCost = item.GetGlobalItem<EMCGlobalItem>().emc;
+                    Main.hoverItemName = $"{item.Name} ({emcCost} EMC)";
+                }
+            }
+            // Show tooltip for navigation buttons
+            else if (prevPageButton.IsMouseHovering)
+            {
+                Main.hoverItemName = "Previous Page";
+            }
+            else if (nextPageButton.IsMouseHovering)
+            {
+                Main.hoverItemName = "Next Page";
+            }
         }
     }
 }
