@@ -248,8 +248,8 @@ namespace EquivalentExchange.UI.States
         private void NavigateNextPage()
         {
             EMCPlayer emcPlayer = Main.LocalPlayer.GetModPlayer<EMCPlayer>();
-            int totalItems = emcPlayer.GetTotalLearnedItemCount();
-            int totalPages = (int)Math.Ceiling(totalItems / (float)TRANSMUTATION_SLOT_COUNT);
+            int affordableItems = emcPlayer.GetAffordableLearnedItemCount();
+            int totalPages = (int)Math.Ceiling(affordableItems / (float)TRANSMUTATION_SLOT_COUNT);
             
             if (currentPage < totalPages - 1)
             {
@@ -262,8 +262,8 @@ namespace EquivalentExchange.UI.States
         private void UpdatePageInfo()
         {
             EMCPlayer emcPlayer = Main.LocalPlayer.GetModPlayer<EMCPlayer>();
-            int totalItems = emcPlayer.GetTotalLearnedItemCount();
-            int totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (float)TRANSMUTATION_SLOT_COUNT));
+            int affordableItems = emcPlayer.GetAffordableLearnedItemCount();
+            int totalPages = Math.Max(1, (int)Math.Ceiling(affordableItems / (float)TRANSMUTATION_SLOT_COUNT));
             
             pageInfoText.SetText($"Page {currentPage + 1}/{totalPages}");
             
@@ -475,8 +475,8 @@ namespace EquivalentExchange.UI.States
         
         private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
         {
-            // Get the current page of items
-            List<LearnedItemInfo> pageItems = emcPlayer.GetMostExpensiveItemsPaginated(TRANSMUTATION_SLOT_COUNT, currentPage);
+            // Get the current page of affordable items
+            List<LearnedItemInfo> pageItems = emcPlayer.GetAffordableItemsPaginated(TRANSMUTATION_SLOT_COUNT, currentPage);
             
             // Clear previous items
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)

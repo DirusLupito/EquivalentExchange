@@ -161,6 +161,23 @@ namespace EquivalentExchange.Common.Players
             return learnedItems.Count;
         }
 
+        // Get a specific page of affordable items learned (items with EMC value ≤ player's current EMC)
+        public List<LearnedItemInfo> GetAffordableItemsPaginated(int pageSize, int pageNumber)
+        {
+            // Filter to only include items that the player can afford
+            return learnedItems.Values
+                .Where(item => item.EMCValue <= storedEMC)
+                .Skip(pageNumber * pageSize)
+                .Take(pageSize)
+                .ToList();
+        }
+
+        // Get total count of affordable learned items
+        public int GetAffordableLearnedItemCount()
+        {
+            return learnedItems.Values.Count(item => item.EMCValue <= storedEMC);
+        }
+
         // Unlearn an item (remove it from learned items)
         public bool UnlearnItem(int itemType)
         {
