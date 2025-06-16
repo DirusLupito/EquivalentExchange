@@ -175,8 +175,8 @@ namespace EquivalentExchange.Common.Utilities
                 if (Main.recipe.Any(r => r.createItem.type == item.type) == false)
                 {
                     basicItems.Add(item.type);
-                    // Assign a default EMC value of the item's price in copper coins, or 1 if it would have been 0
-                    emcValues[item.type] = item.value > 0 ? new RationalNumber(item.value, 1) : RationalNumber.One;
+                    // Assign a default EMC value of the item's price in copper coins divided by 5, or 1 if it would have been 0
+                    emcValues[item.type] = item.value > 0 ? new RationalNumber(item.value, 5) : RationalNumber.One;
                 }
             }
             LogMessage($"Found {basicItems.Count} basic items with no recipes.");
@@ -285,7 +285,7 @@ namespace EquivalentExchange.Common.Utilities
                 if (emcValues[item.type].Numerator == -1)
                 {
                     // Assign the item's value in copper coins, or 1 if it would have been 0
-                    emcValues[item.type] = item.value > 0 ? new RationalNumber(item.value, 1) : RationalNumber.One;
+                    emcValues[item.type] = item.value > 0 ? new RationalNumber(item.value, 5) : RationalNumber.One;
                 }
             }
             // Log the final EMC values
@@ -311,11 +311,11 @@ namespace EquivalentExchange.Common.Utilities
         /// </summary>
         private static void setCommonEMCValues(Dictionary<int, RationalNumber> emcValues)
         {
-            // Set the four fragments to their store price
-            emcValues[ItemID.FragmentVortex] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentVortex)?.value ?? 0, 1);
-            emcValues[ItemID.FragmentNebula] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentNebula)?.value ?? 0, 1);
-            emcValues[ItemID.FragmentSolar] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentSolar)?.value ?? 0, 1);
-            emcValues[ItemID.FragmentStardust] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentStardust)?.value ?? 0, 1);
+            // Set the four fragments to their store price divided by 5
+            emcValues[ItemID.FragmentVortex] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentVortex)?.value ?? 0, 5);
+            emcValues[ItemID.FragmentNebula] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentNebula)?.value ?? 0, 5);
+            emcValues[ItemID.FragmentSolar] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentSolar)?.value ?? 0, 5);
+            emcValues[ItemID.FragmentStardust] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentStardust)?.value ?? 0, 5);
 
             // Dirt, stone, sand, cobweb and wood are all very common, so their EMC is 1
             emcValues[ItemID.DirtBlock] = RationalNumber.One;
@@ -338,36 +338,36 @@ namespace EquivalentExchange.Common.Utilities
             emcValues[ItemID.Obsidian] = new RationalNumber(1000, 1);
 
             // Water and lava buckets the same as the bucket
-            emcValues[ItemID.WaterBucket] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.EmptyBucket)?.value ?? 0, 1);
-            emcValues[ItemID.LavaBucket] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.EmptyBucket)?.value ?? 0, 1);
+            emcValues[ItemID.WaterBucket] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.EmptyBucket)?.value ?? 0, 5);
+            emcValues[ItemID.LavaBucket] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.EmptyBucket)?.value ?? 0, 5);
 
             // The major ores should be set to their store price (except for obsidian since that has a store price of 0)
-            emcValues[ItemID.Hellstone] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Hellstone)?.value ?? 0, 1);
-            emcValues[ItemID.CopperOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.CopperOre)?.value ?? 0, 1);
-            emcValues[ItemID.TinOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TinOre)?.value ?? 0, 1);
-            emcValues[ItemID.IronOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.IronOre)?.value ?? 0, 1);
-            emcValues[ItemID.LeadOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.LeadOre)?.value ?? 0, 1);
-            emcValues[ItemID.SilverOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.SilverOre)?.value ?? 0, 1);
-            emcValues[ItemID.TungstenOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TungstenOre)?.value ?? 0, 1);
-            emcValues[ItemID.GoldOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.GoldOre)?.value ?? 0, 1);
-            emcValues[ItemID.PlatinumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.PlatinumOre)?.value ?? 0, 1);
-            emcValues[ItemID.DemoniteOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.DemoniteOre)?.value ?? 0, 1);
-            emcValues[ItemID.CrimtaneOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.CrimtaneOre)?.value ?? 0, 1);
-            emcValues[ItemID.Meteorite] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Meteorite)?.value ?? 0, 1);
-            emcValues[ItemID.CobaltOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.CobaltOre)?.value ?? 0, 1);
-            emcValues[ItemID.PalladiumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.PalladiumOre)?.value ?? 0, 1);
-            emcValues[ItemID.MythrilOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.MythrilOre)?.value ?? 0, 1);
-            emcValues[ItemID.OrichalcumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.OrichalcumOre)?.value ?? 0, 1);
-            emcValues[ItemID.AdamantiteOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.AdamantiteOre)?.value ?? 0, 1);
-            emcValues[ItemID.TitaniumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TitaniumOre)?.value ?? 0, 1);
-            emcValues[ItemID.ChlorophyteOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.ChlorophyteOre)?.value ?? 0, 1);
-            emcValues[ItemID.LunarOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.LunarOre)?.value ?? 0, 1);
+            emcValues[ItemID.Hellstone] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Hellstone)?.value ?? 0, 5);
+            emcValues[ItemID.CopperOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.CopperOre)?.value ?? 0, 5);
+            emcValues[ItemID.TinOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TinOre)?.value ?? 0, 5);
+            emcValues[ItemID.IronOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.IronOre)?.value ?? 0, 5);
+            emcValues[ItemID.LeadOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.LeadOre)?.value ?? 0, 5);
+            emcValues[ItemID.SilverOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.SilverOre)?.value ?? 0, 5);
+            emcValues[ItemID.TungstenOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TungstenOre)?.value ?? 0, 5);
+            emcValues[ItemID.GoldOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.GoldOre)?.value ?? 0, 5);
+            emcValues[ItemID.PlatinumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.PlatinumOre)?.value ?? 0, 5);
+            emcValues[ItemID.DemoniteOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.DemoniteOre)?.value ?? 0, 5);
+            emcValues[ItemID.CrimtaneOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.CrimtaneOre)?.value ?? 0, 5);
+            emcValues[ItemID.Meteorite] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Meteorite)?.value ?? 0, 5);
+            emcValues[ItemID.CobaltOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.CobaltOre)?.value ?? 0, 5);
+            emcValues[ItemID.PalladiumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.PalladiumOre)?.value ?? 0, 5);
+            emcValues[ItemID.MythrilOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.MythrilOre)?.value ?? 0, 5);
+            emcValues[ItemID.OrichalcumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.OrichalcumOre)?.value ?? 0, 5);
+            emcValues[ItemID.AdamantiteOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.AdamantiteOre)?.value ?? 0, 5);
+            emcValues[ItemID.TitaniumOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TitaniumOre)?.value ?? 0, 5);
+            emcValues[ItemID.ChlorophyteOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.ChlorophyteOre)?.value ?? 0, 5);
+            emcValues[ItemID.LunarOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.LunarOre)?.value ?? 0, 5);
 
             // Golden keys for unlocking dungeon chests are way too cheap at 1, hence the increase to 30000
             emcValues[ItemID.GoldenKey] = new RationalNumber(30000, 1);
 
             // Bones should be set at their store price
-            emcValues[ItemID.Bone] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Bone)?.value ?? 0, 1);
+            emcValues[ItemID.Bone] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Bone)?.value ?? 0, 5);
 
             // Biome keys should be set at 1000000 to reflect their rarity
             emcValues[ItemID.CrimsonKey] = new RationalNumber(1000000, 1);
@@ -378,10 +378,10 @@ namespace EquivalentExchange.Common.Utilities
             emcValues[ItemID.DungeonDesertKey] = new RationalNumber(1000000, 1);
 
             // Spooky wood should be set at the store price of the spooky breastplate, divided by the amount of wood it takes to craft it (300)
-            emcValues[ItemID.SpookyWood] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.SpookyBreastplate)?.value ?? 0, 1) / 300;
+            emcValues[ItemID.SpookyWood] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.SpookyBreastplate)?.value ?? 0, 5) / 300;
 
             // Pumpkins should be set at their store price
-            emcValues[ItemID.Pumpkin] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Pumpkin)?.value ?? 0, 1);
+            emcValues[ItemID.Pumpkin] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.Pumpkin)?.value ?? 0, 5);
 
             // Rotten eggs should be set at 100 rather than 1 since they are more rare than say, wood
             emcValues[ItemID.RottenEgg] = new RationalNumber(100, 1);
@@ -468,10 +468,10 @@ namespace EquivalentExchange.Common.Utilities
             emcValues[ItemID.DesertFossil] = new RationalNumber(200, 1);
 
             // Sturdy fossils should be set to the emc value of tungsten since it makes a similar tier of equipment
-            emcValues[ItemID.FossilOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TungstenOre)?.value ?? 0, 1);
+            emcValues[ItemID.FossilOre] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.TungstenOre)?.value ?? 0, 5);
 
-            // Defender medals should be worth 1 gold coin
-            emcValues[ItemID.DefenderMedal] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.GoldCoin)?.value ?? 0, 1);
+            // Defender medals should be worth 1/5 gold coin
+            emcValues[ItemID.DefenderMedal] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.GoldCoin)?.value ?? 0, 5);
 
             // The bloody tear should be worth 10000 due to its rarity and the fact that it can summon an event
             emcValues[ItemID.BloodMoonStarter] = new RationalNumber(10000, 1);

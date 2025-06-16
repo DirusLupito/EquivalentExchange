@@ -302,7 +302,7 @@ namespace EquivalentExchange.UI.States
                 emcPlayer.LearnItem(burnSlot, EMCHelper.GetEMC(burnSlot));
 
                 // Show a message to the player
-                Main.NewText($"Burned {burnSlot.stack} x {burnSlot.Name} for {emcValue} EMC.", Color.LightGreen);
+                Main.NewText($"Transmuted {burnSlot.stack} x {burnSlot.Name} for {emcValue} EMC.", Color.LightGreen);
 
                 // Remove the item
                 burnSlot = new Item();
