@@ -21,8 +21,8 @@ namespace EquivalentExchange.Items
             // Price of its constituent items:
             // Obsidian (4) = 0
             // Stone Block (4) = 0
-            // Philosopher's Stone (1) = 1 gold 50 silver
-            Item.value = Item.sellPrice(gold: 1, silver: 50);
+            // Philosopher's Stone (1) = 2 gold
+            Item.value = Item.sellPrice(gold: 2);
             Item.rare = ItemRarityID.Orange;
             Item.useStyle = ItemUseStyleID.HoldUp;
             Item.useTime = 20;
