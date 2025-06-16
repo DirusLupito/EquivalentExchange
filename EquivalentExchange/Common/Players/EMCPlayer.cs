@@ -3,7 +3,6 @@ using Terraria.ModLoader;
 using Terraria.ModLoader.IO;
 using System.Collections.Generic;
 using System;
-using EquivalentExchange.Common.GlobalItems;
 using System.Linq;
 using EquivalentExchange.Common.Utilities;
 

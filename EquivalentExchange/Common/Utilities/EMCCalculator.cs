@@ -4,10 +4,9 @@ using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
 using System.Linq;
-using EquivalentExchange.Common.GlobalItems;
-using Microsoft.Xna.Framework;
 using System.IO;
 using System.Text;
+using Terraria.Localization;
 
 namespace EquivalentExchange.Common.Utilities
 {
@@ -110,17 +109,25 @@ namespace EquivalentExchange.Common.Utilities
             foreach (var mod in ModLoader.Mods)
             {
                 if (mod == null) continue;
-                
+
+                if (mod.Name == "ModLoader") continue; // Skip the ModLoader mod
+
+                LogMessage($"Loading {mod.GetContent<ModItem>().Count()} items from mod: {mod.Name}");
+
                 for (int i = 0; i < mod.GetContent<ModItem>().Count(); i++)
                 {
                     int type = mod.GetContent<ModItem>().ElementAt(i).Type;
                     Item item = new Item();
                     item.SetDefaults(type);
-                    
+
+                    var localizationKey = mod.GetContent<ModItem>().ElementAt(i).GetLocalizationKey("");
+
                     // Skip items with no name or empty names
-                    if (string.IsNullOrEmpty(item.Name))
+                    if (string.IsNullOrEmpty(Language.GetText(localizationKey).ToString()))
                         continue;
-                    
+
+                    LogMessage($"Loaded item: {Language.GetText(localizationKey)} (Type: {type}) from mod: {mod.Name}");
+
                     allItems.Add(item);
                 }
             }

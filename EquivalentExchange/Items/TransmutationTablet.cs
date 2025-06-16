@@ -18,7 +18,11 @@ namespace EquivalentExchange.Items
             Item.width = 28;
             Item.height = 28;
             Item.maxStack = 1;
-            Item.value = Item.sellPrice(gold: 10);
+            // Price of its constituent items:
+            // Obsidian (4) = 0
+            // Stone Block (4) = 0
+            // Philosopher's Stone (1) = 1 gold 50 silver
+            Item.value = Item.sellPrice(gold: 1, silver: 50);
             Item.rare = ItemRarityID.Orange;
             Item.useStyle = ItemUseStyleID.HoldUp;
             Item.useTime = 20;
@@ -43,8 +47,9 @@ namespace EquivalentExchange.Items
         public override void AddRecipes()
         {
             Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.DirtBlock, 10);
-            recipe.AddTile(TileID.WorkBenches);
+            recipe.AddIngredient(ItemID.Obsidian, 4);
+            recipe.AddIngredient(ItemID.StoneBlock, 4);
+            recipe.AddIngredient(ItemID.PhilosophersStone, 1);
             recipe.Register();
         }
     }

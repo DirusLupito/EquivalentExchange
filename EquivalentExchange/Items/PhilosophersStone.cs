@@ -1,4 +1,3 @@
-using EquivalentExchange.Common.Systems;
 using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -18,7 +17,12 @@ namespace EquivalentExchange.Items
             Item.width = 28;
             Item.height = 28;
             Item.maxStack = 1;
-            Item.value = Item.sellPrice(gold: 10);
+            // Price of its constituent items:
+            // Diamond (1) = 30 silver
+            // Ruby (4) = 22 silver 50 copper * 4 = 90 silver
+            // Topaz (4) = 7 silver 50 copper * 4 = 30 silver
+            // Total = 30 + 90 + 30 = 150 silver = 1 gold 50 silver
+            Item.value = Item.sellPrice(gold: 1, silver: 50);
             Item.rare = ItemRarityID.Orange;
             Item.useStyle = ItemUseStyleID.HoldUp;
             Item.useTime = 20;
@@ -30,8 +34,10 @@ namespace EquivalentExchange.Items
         public override void AddRecipes()
         {
             Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.DirtBlock, 10);
-            recipe.AddTile(TileID.WorkBenches);
+            recipe.AddIngredient(ItemID.Diamond, 1);
+            recipe.AddIngredient(ItemID.Ruby, 4);
+            recipe.AddIngredient(ItemID.Topaz, 4);
+            recipe.AddTile(TileID.DemonAltar);
             recipe.Register();
         }
     }
