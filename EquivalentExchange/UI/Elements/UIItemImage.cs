@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.UI;
 
 namespace EquivalentExchange.UI.Elements
@@ -49,6 +50,14 @@ namespace EquivalentExchange.UI.Elements
                 Color.White,
                 32f
             );
+
+            // Also draw the stack count if applicable
+            if (Item.stack > 1)
+            {
+                // Draw the stack count like in the vanilla inventory, below and to the left of the item
+                Vector2 stackPosition = position + new Vector2(-1 * TextureAssets.Item[Item.type].Value.Width, TextureAssets.Item[Item.type].Value.Height / 4);
+                Utils.DrawBorderString(spriteBatch, Item.stack.ToString(), stackPosition, Color.White, 1f);
+            }
         }
     }
 }

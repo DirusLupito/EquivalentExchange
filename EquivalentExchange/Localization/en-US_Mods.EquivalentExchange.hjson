@@ -10,6 +10,12 @@ Items: {
 		DisplayName: Transmutation Tablet
 		Tooltip: Transmute this into that!
 	}
+
+	EnergyCondenser: {
+		DisplayName: Energy Condenser
+		Tooltip: ""
+	}
 }
 
 EMCGlobalItem.EMCValue: Mods.EquivalentExchange.EMCGlobalItem.EMCValue
+Tiles.EnergyCondenserTile.MapEntry: Energy Condenser Tile
