@@ -50,6 +50,7 @@ namespace EquivalentExchange.Items
             recipe.AddIngredient(ItemID.Obsidian, 4);
             recipe.AddIngredient(ItemID.StoneBlock, 4);
             recipe.AddIngredient(ItemID.PhilosophersStone, 1);
+            recipe.AddTile(TileID.MythrilAnvil);
             recipe.Register();
         }
     }
