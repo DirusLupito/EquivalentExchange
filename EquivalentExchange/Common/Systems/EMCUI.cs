@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Terraria;
 using Terraria.ModLoader;
 using Terraria.UI;
+using Terraria.ID;
 
 namespace EquivalentExchange.Common.Systems
 {
@@ -149,6 +150,19 @@ namespace EquivalentExchange.Common.Systems
 
         public static void CloseEnergyCondenserUI()
         {
+            if (_currentTileEntity != null)
+            {
+                // Tell the server we're no longer using this condenser
+                if (Main.netMode == NetmodeID.MultiplayerClient)
+                {
+                    EMCNetCodeSystem.SendReleaseAccess(_currentTileEntity.Position.X, _currentTileEntity.Position.Y);
+                }
+                else if (Main.netMode == NetmodeID.SinglePlayer)
+                {
+                    _currentTileEntity.ReleaseAccess(Main.myPlayer);
+                }
+            }
+            
             EnergyCondenserVisible = false;
             _currentTileEntity = null;
         }

@@ -9,6 +9,8 @@ using Terraria;
 using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
 using Terraria.UI;
+using Terraria.ID;
+using Terraria.DataStructures;
 namespace EquivalentExchange.UI.States
 {
     public class EnergyCondenserUIState : UIState
@@ -59,8 +61,8 @@ namespace EquivalentExchange.UI.States
             mainPanel = new UIPanel();
             mainPanel.Width.Set(PANEL_WIDTH, 0f);
             mainPanel.Height.Set(PANEL_HEIGHT, 0f);
-            // Position at bottom left
-            mainPanel.HAlign = 0f; // Left
+            // Position at bottom left middle
+            mainPanel.HAlign = 0.2f; // Left middle
             mainPanel.VAlign = 1f; // Bottom
             mainPanel.Left.Set(20f, 0f); // Give some margin from the left edge
             mainPanel.Top.Set(-20f, 0f); // Move up slightly from bottom
@@ -154,32 +156,67 @@ namespace EquivalentExchange.UI.States
             // Left click sets template (without consuming the item)
             if (!Main.mouseItem.IsAir)
             {
-                // Use the TrySetTemplate method instead of direct assignment
-                if (tileEntity.TrySetTemplate(Main.mouseItem))
+                Item newTemplateItem = Main.mouseItem.IsAir ? new Item() : Main.mouseItem.Clone();
+                newTemplateItem.stack = 1;
+                
+                // In multiplayer, send change to server first
+                if (Main.netMode == NetmodeID.MultiplayerClient)
                 {
-                    // Success message or sound could be added here
+                    EMCNetCodeSystem.SendModifyTemplate(
+                        tileEntity.Position.X,
+                        tileEntity.Position.Y,
+                        newTemplateItem);
                 }
                 else
                 {
-                    // Item has no EMC value
-                    Main.NewText("This item has no EMC value and cannot be used as a template.", Color.Red);
+                    // In singleplayer, update directly
+                    if (tileEntity.TrySetTemplate(Main.mouseItem))
+                    {
+                        // Success
+                    }
+                    else
+                    {
+                        // Item has no EMC value
+                        Main.NewText("This item has no EMC value and cannot be used as a template.", Color.Red);
+                    }
                 }
-                UpdateDisplay();
             }
             else if (!tileEntity.templateItem.IsAir)
             {
-                // If the use clicks with an empty hand, clear the template
-                tileEntity.TrySetTemplate(new Item()); // Clear template
-                UpdateDisplay();
+                // If the user clicks with an empty hand, clear the template
+                if (Main.netMode == NetmodeID.MultiplayerClient)
+                {
+                    EMCNetCodeSystem.SendModifyTemplate(
+                        tileEntity.Position.X,
+                        tileEntity.Position.Y,
+                        new Item());
+                }
+                else
+                {
+                    tileEntity.TrySetTemplate(new Item());
+                }
             }
+            
+            UpdateDisplay();
         }
 
         private void TemplateSlot_OnRightClick(UIMouseEvent evt, UIElement listeningElement)
         {
             if (tileEntity == null) return;
-
+        
             // Right click clears template
-            tileEntity.templateItem = new Item();
+            if (Main.netMode == NetmodeID.MultiplayerClient)
+            {
+                EMCNetCodeSystem.SendModifyTemplate(
+                    tileEntity.Position.X,
+                    tileEntity.Position.Y,
+                    new Item());
+            }
+            else
+            {
+                tileEntity.TrySetTemplate(new Item());
+            }
+            
             UpdateDisplay();
         }
 
@@ -201,12 +238,34 @@ namespace EquivalentExchange.UI.States
                     
                     if (Main.mouseItem.stack <= 0)
                         Main.mouseItem = new Item();
+                        
+                    // Sync change to server
+                    if (Main.netMode == NetmodeID.MultiplayerClient)
+                    {
+                        EMCNetCodeSystem.SendModifyInventory(
+                            tileEntity.Position.X,
+                            tileEntity.Position.Y,
+                            slotIndex,
+                            tileEntity.inventory[slotIndex]);
+                    }
                 }
                 else
                 {
                     // Swap items - direct reference swap
                     Item temp = Main.mouseItem;
                     Main.mouseItem = slotItem;
+                    
+                    // Send both changes to server
+                    if (Main.netMode == NetmodeID.MultiplayerClient)
+                    {
+                        // First, update the slot with the new item
+                        EMCNetCodeSystem.SendModifyInventory(
+                            tileEntity.Position.X,
+                            tileEntity.Position.Y,
+                            slotIndex,
+                            temp);
+                    }
+                    
                     tileEntity.inventory[slotIndex] = temp;
                 }
             }
@@ -214,6 +273,17 @@ namespace EquivalentExchange.UI.States
             {
                 // Put mouse item in empty slot
                 tileEntity.inventory[slotIndex] = Main.mouseItem;
+                
+                // Sync to server
+                if (Main.netMode == NetmodeID.MultiplayerClient)
+                {
+                    EMCNetCodeSystem.SendModifyInventory(
+                        tileEntity.Position.X,
+                        tileEntity.Position.Y,
+                        slotIndex,
+                        tileEntity.inventory[slotIndex]);
+                }
+                
                 Main.mouseItem = new Item();
             }
             else if (Main.mouseItem.IsAir && !slotItem.IsAir)
@@ -221,6 +291,16 @@ namespace EquivalentExchange.UI.States
                 // Take item from slot - direct reference
                 Main.mouseItem = slotItem;
                 tileEntity.inventory[slotIndex] = new Item();
+                
+                // Sync to server
+                if (Main.netMode == NetmodeID.MultiplayerClient)
+                {
+                    EMCNetCodeSystem.SendModifyInventory(
+                        tileEntity.Position.X,
+                        tileEntity.Position.Y,
+                        slotIndex,
+                        new Item());
+                }
             }
             
             UpdateDisplay();
@@ -281,7 +361,7 @@ namespace EquivalentExchange.UI.States
                 // If the player's inventory is not open, close the energy condenser UI
                 if (!Main.playerInventory && emcPlayer != null)
                 {
-                    EMCUI.EnergyCondenserVisible = false;
+                    EMCUI.CloseEnergyCondenserUI();
                     return;
                 }
             }
@@ -289,9 +369,24 @@ namespace EquivalentExchange.UI.States
             if (tileEntity == null)
             {
                 // Close UI if tile entity is null
-                EMCUI.EnergyCondenserVisible = false;
+                EMCUI.CloseEnergyCondenserUI();
                 return;
             }
+
+            // Request a sync to keep up-to-date with server
+            if (Main.netMode == NetmodeID.MultiplayerClient)
+            {
+                EMCNetCodeSystem.RequestCondenserSync(tileEntity.Position.X, tileEntity.Position.Y);
+                // Reset the tile entity to ensure we have the latest data
+                TileEntity.TryGet(tileEntity.Position.X, tileEntity.Position.Y, out tileEntity);
+                // If we can't get the tile entity, close the UI
+                if (tileEntity == null)
+                {
+                    EMCUI.CloseEnergyCondenserUI();
+                    return;
+                }
+            }
+
 
             // If the player is interacting with the UI, set mouseInterface to true
             if (!Main.LocalPlayer.mouseInterface && mainPanel.ContainsPoint(Main.MouseScreen))
@@ -301,7 +396,7 @@ namespace EquivalentExchange.UI.States
 
             // Update hover states
             UpdateHoverStates();
-
+            
             // Update display periodically
             UpdateDisplay();
         }

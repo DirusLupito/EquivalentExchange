@@ -12,6 +12,9 @@ namespace EquivalentExchange.TileEntities
 {
     public class EnergyCondenserTileEntity : ModTileEntity
     {
+        // Add tracking for which player is using this condenser
+        public int CurrentUser { get; private set; } = -1; // -1 means no user
+
         // Constants
         private const int INVENTORY_SIZE = 56; // 8 rows * 7 columns = 56 slots
         private const int ITEMS_PER_TICK = 5; // How many items can be processed per tick
@@ -23,7 +26,7 @@ namespace EquivalentExchange.TileEntities
         
         // Cached values for performance
         private int lastEMCSync = 0;
-        private const int EMC_SYNC_INTERVAL = 60; // Sync EMC every 60 ticks (1 second)
+        private const int EMC_SYNC_INTERVAL = 10; // Reduced from 60 to 10 for more frequent syncing
 
         public EnergyCondenserTileEntity()
         {
@@ -80,6 +83,9 @@ namespace EquivalentExchange.TileEntities
 
         public override void NetSend(BinaryWriter writer)
         {
+            // Add CurrentUser to the data being sent
+            writer.Write(CurrentUser);
+            
             writer.Write(storedEMC.Numerator);
             writer.Write(storedEMC.Denominator);
             
@@ -95,6 +101,9 @@ namespace EquivalentExchange.TileEntities
 
         public override void NetReceive(BinaryReader reader)
         {
+            // Read CurrentUser first
+            CurrentUser = reader.ReadInt32();
+            
             long numerator = reader.ReadInt64();
             long denominator = reader.ReadInt64();
             storedEMC = new RationalNumber(numerator, denominator);
@@ -109,12 +118,93 @@ namespace EquivalentExchange.TileEntities
             }
         }
 
+        // Add this method to handle player access requests
+        public bool RequestAccess(int playerIndex)
+        {
+            // If condenser is not in use or the requesting player is already using it
+            if (CurrentUser == -1 || CurrentUser == playerIndex)
+            {
+                CurrentUser = playerIndex;
+                
+                // Request accepted, tell everyone
+                if (Main.netMode == NetmodeID.Server)
+                {
+                    NetMessage.SendData(MessageID.TileEntitySharing, number: ID, number2: Position.X, number3: Position.Y);
+                }
+                return true;
+            }
+            return false;
+        }
+        
+        // Add this method to handle releasing access
+        public void ReleaseAccess(int playerIndex)
+        {
+            if (CurrentUser == playerIndex)
+            {
+                CurrentUser = -1;
+                
+                // Access released, tell everyone
+                if (Main.netMode == NetmodeID.Server)
+                {
+                    NetMessage.SendData(MessageID.TileEntitySharing, number: ID, number2: Position.X, number3: Position.Y);
+                }
+            }
+        }
+        
+        // Add method to handle item placement from client
+        public bool TryPlaceItem(int slotIndex, Item item, int playerIndex)
+        {
+            // Only allow current user to modify inventory
+            if (CurrentUser != playerIndex)
+                return false;
+                
+            // Logic for placing the item
+            if (slotIndex >= 0 && slotIndex < INVENTORY_SIZE)
+            {
+                inventory[slotIndex] = item;
+                
+                // Sync changes
+                if (Main.netMode == NetmodeID.Server)
+                {
+                    NetMessage.SendData(MessageID.TileEntitySharing, number: ID, number2: Position.X, number3: Position.Y);
+                }
+                return true;
+            }
+            return false;
+        }
+        
+        // Add method to handle item removal from client
+        public bool TryTakeItem(int slotIndex, int playerIndex, out Item item)
+        {
+            item = new Item();
+            
+            // Only allow current user to modify inventory
+            if (CurrentUser != playerIndex)
+                return false;
+                
+            // Logic for taking the item
+            if (slotIndex >= 0 && slotIndex < INVENTORY_SIZE && !inventory[slotIndex].IsAir)
+            {
+                item = inventory[slotIndex];
+                inventory[slotIndex] = new Item();
+                
+                // Sync changes
+                if (Main.netMode == NetmodeID.Server)
+                {
+                    NetMessage.SendData(MessageID.TileEntitySharing, number: ID, number2: Position.X, number3: Position.Y);
+                }
+                return true;
+            }
+            return false;
+        }
+
         public override void Update()
         {
             // Only process on server or single player
             if (Main.netMode == NetmodeID.MultiplayerClient)
                 return;
 
+            // Existing processing logic
             ProcessItems();
             
             // Sync periodically

@@ -9,6 +9,7 @@ using Terraria.GameContent.ObjectInteractions;
 using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.ObjectData;
+using EquivalentExchange.Common.Systems;
 
 namespace EquivalentExchange.Tiles
 {
@@ -76,17 +77,27 @@ namespace EquivalentExchange.Tiles
             Main.npcChatCornerItem = 0;
             Main.npcChatText = "";
 
-            if (TileEntity.TryGet(left, top, out EnergyCondenserTileEntity tileEntity))
+            if (Main.netMode == NetmodeID.MultiplayerClient)
             {
-                // If the tile entity exists, toggle its UI
-                Main.playerInventory = true;
-                if (tileEntity.ToggleUI())
+                // In multiplayer, send request to server
+                EMCNetCodeSystem.SendRequestAccess(left, top);
+                return true;
+            }
+            else
+            {
+                // Single player, just open UI
+                if (TileEntity.TryGet(left, top, out EnergyCondenserTileEntity tileEntity))
                 {
-                    SoundEngine.PlaySound(SoundID.MenuOpen);
-                }
-                else
-                {
-                    SoundEngine.PlaySound(SoundID.MenuClose);
+                    Main.playerInventory = true;
+                    tileEntity.RequestAccess(Main.myPlayer); // For consistency
+                    if (EMCUI.ToggleEnergyCondenserUI(tileEntity))
+                    {
+                        SoundEngine.PlaySound(SoundID.MenuOpen);
+                    }
+                    else
+                    {
+                        SoundEngine.PlaySound(SoundID.MenuClose);
+                    }
                 }
             }
 
