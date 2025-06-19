@@ -45,6 +45,7 @@ namespace EquivalentExchange.UI.Elements
         public void Focus()
         {
             focused = true;
+            Main.blockInput = true;
             // Reset cursor blink timer
             cursorBlinkTimer = 0;
             // Place cursor at end of text
@@ -54,6 +55,7 @@ namespace EquivalentExchange.UI.Elements
         public void Unfocus()
         {
             focused = false;
+            Main.blockInput = false;
         }
 
         public void SetText(string text)

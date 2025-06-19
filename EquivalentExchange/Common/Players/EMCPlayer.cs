@@ -5,12 +5,80 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 using EquivalentExchange.Common.Utilities;
+using EquivalentExchange.TileEntities;
+using Terraria.DataStructures;
 
 namespace EquivalentExchange.Common.Players
 {
     public class EMCPlayer : ModPlayer
     {
         public RationalNumber storedEMC = RationalNumber.Zero;
+
+        // Track the current energy condenser this player is accessing
+        public Point16 CurrentCondenserPosition { get; private set; } = Point16.Zero;
+        public bool HasCondenserOpen => CurrentCondenserPosition != Point16.Zero;
+
+        // Method to set the current condenser and release any previous one
+        public void SetCurrentCondenser(int x, int y)
+        {
+            // If already has a condenser open and it's not the same one
+            if (HasCondenserOpen && (CurrentCondenserPosition.X != x || CurrentCondenserPosition.Y != y))
+            {
+                // Release the previous condenser
+                ReleaseCurrentCondenser();
+            }
+
+            // Set new condenser position
+            CurrentCondenserPosition = new Point16(x, y);
+        }
+
+        // Method to release the currently open condenser
+        public void ReleaseCurrentCondenser()
+        {
+            if (HasCondenserOpen)
+            {
+                // Check if the tile entity still exists
+                if (TileEntity.ByPosition.TryGetValue(CurrentCondenserPosition, out TileEntity entity) && 
+                    entity is EnergyCondenserTileEntity condenser)
+                {
+                    // Release access
+                    condenser.ReleaseAccess(Player.whoAmI);
+
+                    // If in multiplayer, send the release access message
+                    if (Main.netMode == Terraria.ID.NetmodeID.MultiplayerClient)
+                    {
+                        Common.Systems.EMCNetCodeSystem.SendReleaseAccess(
+                            CurrentCondenserPosition.X, 
+                            CurrentCondenserPosition.Y);
+                    }
+                }
+
+                // Reset the position
+                CurrentCondenserPosition = Point16.Zero;
+            }
+        }
+
+        public override void OnEnterWorld()
+        {
+            // Reset condenser tracking when entering world
+            CurrentCondenserPosition = Point16.Zero;
+
+            // (For fixing a potential issue with search locking input)
+            // Unblock main input
+            if (Main.blockInput)
+            {
+                Main.blockInput = false;
+            }
+        }
+
+        public override void PreUpdate()
+        {
+            // If player dies, release condenser
+            if (Player.dead && HasCondenserOpen)
+            {
+                ReleaseCurrentCondenser();
+            }
+        }
 
         // SortedDictionary to store learned items
         // This data structure prioritizes two operations:
@@ -227,6 +295,24 @@ namespace EquivalentExchange.Common.Players
             return learnedItems.Values
                 .Where(item => item.EMCValue <= storedEMC)
                 .ToList();
+        }
+
+        public override void PlayerDisconnect()
+        {
+            // Release any open condenser when player disconnects
+            if (HasCondenserOpen)
+            {
+                ReleaseCurrentCondenser();
+            }
+        }
+
+        public override void PreSavePlayer()
+        {
+            // Release any open condenser before saving player
+            if (HasCondenserOpen)
+            {
+                ReleaseCurrentCondenser();
+            }
         }
     }
 

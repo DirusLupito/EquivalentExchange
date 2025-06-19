@@ -10,6 +10,7 @@ using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.ObjectData;
 using EquivalentExchange.Common.Systems;
+using EquivalentExchange.Common.Players;
 
 namespace EquivalentExchange.Tiles
 {
@@ -77,6 +78,11 @@ namespace EquivalentExchange.Tiles
             Main.npcChatCornerItem = 0;
             Main.npcChatText = "";
 
+            // Check if player already has a different condenser open
+            EMCPlayer emcPlayer = player.GetModPlayer<EMCPlayer>();
+            // If the player has a different condenser open, we should release it
+            // This happens automatically in SetCurrentCondenser
+
             if (Main.netMode == NetmodeID.MultiplayerClient)
             {
                 // In multiplayer, send request to server
@@ -90,6 +96,8 @@ namespace EquivalentExchange.Tiles
                 {
                     Main.playerInventory = true;
                     tileEntity.RequestAccess(Main.myPlayer); // For consistency
+                    
+                    // This call will update EMCPlayer's current condenser tracking
                     if (EMCUI.ToggleEnergyCondenserUI(tileEntity))
                     {
                         SoundEngine.PlaySound(SoundID.MenuOpen);

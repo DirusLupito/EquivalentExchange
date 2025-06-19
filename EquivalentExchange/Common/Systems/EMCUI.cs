@@ -6,6 +6,7 @@ using Terraria;
 using Terraria.ModLoader;
 using Terraria.UI;
 using Terraria.ID;
+using EquivalentExchange.Common.Players;
 
 namespace EquivalentExchange.Common.Systems
 {
@@ -138,7 +139,16 @@ namespace EquivalentExchange.Common.Systems
             }
             else
             {
-                // If the UI is not open for this tile entity, open it
+                // If the player already has a different condenser open, the EMCPlayer.SetCurrentCondenser
+                // method will handle releasing it
+
+                // Update player's current condenser tracking
+                if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+                {
+                    emcPlayer.SetCurrentCondenser(tileEntity.Position.X, tileEntity.Position.Y);
+                }
+
+                // Set the new tile entity and open UI
                 _currentTileEntity = tileEntity;
                 if (energyCondenserUI != null)
                 {
@@ -154,14 +164,10 @@ namespace EquivalentExchange.Common.Systems
         {
             if (_currentTileEntity != null)
             {
-                // Tell the server we're no longer using this condenser
-                if (Main.netMode == NetmodeID.MultiplayerClient)
+                // Update player's current condenser tracking
+                if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
                 {
-                    EMCNetCodeSystem.SendReleaseAccess(_currentTileEntity.Position.X, _currentTileEntity.Position.Y);
-                }
-                else if (Main.netMode == NetmodeID.SinglePlayer)
-                {
-                    _currentTileEntity.ReleaseAccess(Main.myPlayer);
+                    emcPlayer.ReleaseCurrentCondenser();
                 }
             }
 
