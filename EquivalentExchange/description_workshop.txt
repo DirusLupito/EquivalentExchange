@@ -1,1 +1,3 @@
-This description will show up on the steam page, check out https://steamcommunity.com/comment/Guide/formattinghelp.
+[h1] Equivalent Exchange [/h1] 
+
+A partial port of the Equivalent Exchange (aka ProjectE) mod from Minecraft, this mod allows you to convert items into EMC and back again. So far, it adds the EMC system as well as the Transmutation Tablet and the Energy Condenser.

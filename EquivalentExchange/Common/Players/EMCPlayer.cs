@@ -167,10 +167,12 @@ namespace EquivalentExchange.Common.Players
             return learnedItems.Values.Take(count).ToList();
         }
         
-        // Get all learned items
+        // Get all learned items in descending EMC order
         public IEnumerable<LearnedItemInfo> GetAllLearnedItems()
         {
-            return learnedItems.Values;
+            // Return all items directly from the sorted dictionary
+            // This preserves the EMC value descending order
+            return learnedItems.Values.ToList();
         }
 
         // Get a specific page of expensive items learned (in terms of EMC)
@@ -216,6 +218,15 @@ namespace EquivalentExchange.Common.Players
                 return true;
             }
             return false;
+        }
+
+        // Get affordable learned items in descending EMC order
+        public List<LearnedItemInfo> GetAffordableLearnedItems()
+        {
+            // Filter for affordable items but preserve the natural dictionary order
+            return learnedItems.Values
+                .Where(item => item.EMCValue <= storedEMC)
+                .ToList();
         }
     }
 

@@ -18,14 +18,24 @@ namespace EquivalentExchange.Items
             Item.DefaultToPlaceableTile(ModContent.TileType<EnergyCondenserTile>());
             Item.width = 26;
             Item.height = 22;
-            Item.value = Item.sellPrice(gold: 5);
+            // Diamond = 30 silver * 6 = 180 = 1 Gold 80 silver
+            // Ruby = 22 silver 50 copper * 1 =  22 silver 50 copper
+            // Chest = 1 silver * 1 =  1 silver
+            // Obsidian and stone = nothing
+            // = 1 Gold 80 silver + 22 silver 50 copper + 1 silver = 2 Gold 2 Silver 50 Copper
+            Item.value = Item.sellPrice(gold:  2, silver: 2, copper: 50);
             Item.rare = ItemRarityID.LightRed;
         }
 
         public override void AddRecipes()
         {
             Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.DirtBlock, 1); // Placeholder recipe as requested
+            recipe.AddIngredient(ItemID.Diamond, 6);    
+            recipe.AddIngredient(ItemID.Ruby, 1);
+            recipe.AddIngredient(ItemID.Obsidian, 10);
+            recipe.AddIngredient(ItemID.StoneBlock, 10);
+            recipe.AddIngredient(ItemID.Chest, 1);
+            recipe.AddTile(TileID.Anvils);
             recipe.Register();
         }
     }

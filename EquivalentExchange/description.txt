@@ -1,2 +1,2 @@
-This mod serves as a port for the Equivalent Exchange mod from Minecraft to Terraria.
-While it does not add most items, it does add the core mechanic of EMC to Terraria via the Transmutation Tablet.
+A partial port of the Equivalent Exchange (aka ProjectE) mod from Minecraft, this mod allows you to convert items into EMC and back again. 
+So far, it adds the EMC system as well as the Transmutation Tablet and the Energy Condenser.

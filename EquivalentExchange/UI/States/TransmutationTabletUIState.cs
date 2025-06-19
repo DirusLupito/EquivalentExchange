@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using EquivalentExchange.Common.GlobalItems;
 using EquivalentExchange.Common.Systems;
 using EquivalentExchange.UI.Elements;
+using System.Linq;
+using Terraria.UI.Chat;
 
 namespace EquivalentExchange.UI.States
 {
@@ -22,6 +24,10 @@ namespace EquivalentExchange.UI.States
         private UIImageButton nextPageButton;
         private UIImageButton prevPageButton;
         private UIText pageInfoText;
+        
+        // Search box elements
+        private UIPanel searchBoxPanel; // Background panel for search box (drawn as part of tablet UI)
+        private UISearchBox searchBox;  // Text-only search component
 
         // Current page for transmutation items
         private int currentPage = 0;
@@ -86,6 +92,7 @@ namespace EquivalentExchange.UI.States
             mainPanel.VAlign = 0.4f; // Position vertically
             mainPanel.SetPadding(10f);
             mainPanel.BackgroundColor = new Color(73, 94, 171);
+            mainPanel.OnLeftClick += (evt, element) => mainPanel_OnLeftClick(evt, element);
             Append(mainPanel);
 
             // Title text
@@ -93,6 +100,9 @@ namespace EquivalentExchange.UI.States
             titleText.HAlign = 0.5f;
             titleText.Top.Set(10f, 0f);
             mainPanel.Append(titleText);
+
+            // Add search box
+            CreateSearchBox();
 
             // Add navigation buttons
             AddNavigationButtons();
@@ -212,6 +222,50 @@ namespace EquivalentExchange.UI.States
             mainPanel.Append(unlearnSlotPanel);
         }
 
+        private void CreateSearchBox()
+        {
+            float searchBoxWidth = 200f;
+            float searchBoxHeight = 30f;
+            
+            // Create search box background panel (part of tablet UI)
+            searchBoxPanel = new UIPanel();
+            searchBoxPanel.Width.Set(searchBoxWidth, 0f);
+            searchBoxPanel.Height.Set(searchBoxHeight, 0f);
+            searchBoxPanel.HAlign = 0.5f;
+            searchBoxPanel.Top.Set(40f, 0f);
+            searchBoxPanel.BackgroundColor = new Color(20, 20, 20); // Dark background
+            searchBoxPanel.BorderColor = new Color(60, 60, 60);
+            mainPanel.Append(searchBoxPanel);
+            
+            // Create text-only search component
+            searchBox = new UISearchBox(searchBoxWidth, searchBoxHeight);
+            searchBox.HAlign = 0.5f;
+            searchBox.Top.Set(40f, 0f);
+            searchBox.TextColor = Color.White; // White text
+            searchBox.PlaceholderText = "Search...";
+            searchBox.MaxTextLength = 15; // Limit text length to fit in the box
+            searchBox.OnTextChanged += (text) => {
+                // Reset page when search changes
+                currentPage = 0;
+                // Update the display
+                if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+                {
+                    UpdateTransmutationSlots(emcPlayer);
+                    UpdatePageInfo();
+                }
+            };
+            mainPanel.Append(searchBox);
+        }
+
+        public void mainPanel_OnLeftClick(UIMouseEvent evt, UIElement listeningElement)
+        {
+            // Unfocus search box when clicking outside it
+            if (searchBox.IsFocused && !searchBox.ContainsPoint(evt.MousePosition))
+            {
+                searchBox.Unfocus();
+            }
+        }
+
         private void AddNavigationButtons()
         {
             var realButtonWidth = Main.Assets.Request<Texture2D>("Images/UI/Bestiary/Button_Back").Value.Width;
@@ -248,8 +302,8 @@ namespace EquivalentExchange.UI.States
         private void NavigateNextPage()
         {
             EMCPlayer emcPlayer = Main.LocalPlayer.GetModPlayer<EMCPlayer>();
-            int affordableItems = emcPlayer.GetAffordableLearnedItemCount();
-            int totalPages = (int)Math.Ceiling(affordableItems / (float)TRANSMUTATION_SLOT_COUNT);
+            int totalFilteredItems = GetFilteredItemCount(emcPlayer);
+            int totalPages = (int)Math.Ceiling(totalFilteredItems / (float)TRANSMUTATION_SLOT_COUNT);
             
             if (currentPage < totalPages - 1)
             {
@@ -259,11 +313,48 @@ namespace EquivalentExchange.UI.States
             }
         }
 
+        // Get count of items matching current search filter
+        private int GetFilteredItemCount(EMCPlayer emcPlayer)
+        {
+            // Get all learned items (already in EMC order from SortedDictionary)
+            var allItems = emcPlayer.GetAllLearnedItems();
+
+            // Filter by affordability
+            var affordableItems = allItems.Where(item => IsItemAffordable(item, emcPlayer));
+
+            // Apply search filter if needed
+            if (!string.IsNullOrWhiteSpace(searchBox.Text))
+            {
+                return affordableItems.Count(item => ItemMatchesSearch(item));
+            }
+            
+            return affordableItems.Count();
+        }
+
+        // Check if item is affordable
+        private bool IsItemAffordable(LearnedItemInfo item, EMCPlayer emcPlayer)
+        {
+            return item.EMCValue <= emcPlayer.storedEMC;
+        }
+
+        // Check if item name matches search text
+        private bool ItemMatchesSearch(LearnedItemInfo item)
+        {
+            if (string.IsNullOrWhiteSpace(searchBox.Text))
+                return true;
+                
+            // Create temporary item to get name
+            Item tempItem = new Item();
+            tempItem.SetDefaults(item.ItemType);
+            
+            return tempItem.Name.ToLower().Contains(searchBox.Text.ToLower());
+        }
+
         private void UpdatePageInfo()
         {
             EMCPlayer emcPlayer = Main.LocalPlayer.GetModPlayer<EMCPlayer>();
-            int affordableItems = emcPlayer.GetAffordableLearnedItemCount();
-            int totalPages = Math.Max(1, (int)Math.Ceiling(affordableItems / (float)TRANSMUTATION_SLOT_COUNT));
+            int totalFilteredItems = GetFilteredItemCount(emcPlayer);
+            int totalPages = Math.Max(1, (int)Math.Ceiling(totalFilteredItems / (float)TRANSMUTATION_SLOT_COUNT));
             
             pageInfoText.SetText($"Page {currentPage + 1}/{totalPages}");
             
@@ -288,6 +379,132 @@ namespace EquivalentExchange.UI.States
             }
         }
 
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+            Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer);
+
+            // If the player's inventory is not open, also close the transmutation tablet UI
+            if (!Main.playerInventory && emcPlayer != null)
+            {
+                // Hide the UI if inventory is closed
+                EMCUI.TransmutationTabletVisible = false;
+                return;
+            }
+
+            // If the player is interacting with the UI, set mouseInterface to true
+            if (!Main.LocalPlayer.mouseInterface && mainPanel.ContainsPoint(Main.MouseScreen))
+            {
+                Main.LocalPlayer.mouseInterface = true;
+            }
+
+            // Handle right-click holding for continuous item creation
+            if (isRightMouseDown && activeRightClickSlot >= 0)
+            {
+                rightClickHoldTime++;
+
+                // After initial delay, start creating items regularly
+                if (rightClickHoldTime > INITIAL_HOLD_DELAY &&
+                    rightClickHoldTime % CONTINUOUS_ITEM_DELAY == 0)
+                {
+                    // Exponentially increase the amount created as the player holds the right mouse button for longer periods
+                    int amount = (int)Math.Pow(EXPONENTIAL_BASE_ITEM_INCREASE, (rightClickHoldTime - INITIAL_HOLD_DELAY) / CONTINUOUS_ITEM_DELAY);
+                    CreateItem(activeRightClickSlot, amount);
+                }
+            }
+
+            // Track which slot the mouse is hovering over
+            UpdateHoveredSlot();
+
+            // Update the display of transmutation slots and EMC value
+            updateDisplay();
+        }
+        
+        private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
+        {
+            // Get filtered and paginated items
+            List<LearnedItemInfo> pageItems = GetItemsForCurrentPage(emcPlayer);
+            
+            // Clear previous items
+            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
+            {
+                transmutationItems[i] = new Item();
+                transmutationSlots[i].Item = new Item(); // Update UIItemImage with empty item
+            }
+
+            // Add new items to slots
+            for (int i = 0; i < pageItems.Count; i++)
+            {
+                // Create item instance
+                Item item = new Item();
+                item.SetDefaults(pageItems[i].ItemType);
+
+                // Store the item
+                transmutationItems[i] = item;
+                
+                // Update the UIItemImage with the new item
+                transmutationSlots[i].Item = item;
+            }
+        }
+
+        // Get items for the current page, properly filtered and ordered
+        private List<LearnedItemInfo> GetItemsForCurrentPage(EMCPlayer emcPlayer)
+        {
+            // Get all items in their natural order (by EMC value in SortedDictionary)
+            var allItems = emcPlayer.GetAllLearnedItems();
+            
+            // Apply affordability filter
+            var affordableItems = allItems.Where(item => IsItemAffordable(item, emcPlayer));
+            
+            // Apply search filter if needed
+            IEnumerable<LearnedItemInfo> filteredItems = affordableItems;
+            if (!string.IsNullOrWhiteSpace(searchBox.Text))
+            {
+                filteredItems = affordableItems.Where(item => ItemMatchesSearch(item));
+            }
+            
+            // Apply pagination
+            return filteredItems
+                .Skip(currentPage * TRANSMUTATION_SLOT_COUNT)
+                .Take(TRANSMUTATION_SLOT_COUNT)
+                .ToList();
+        }
+        
+        private void UpdateHoveredSlot()
+        {
+            hoveringTransmutationSlot = -1;
+            hoveringBurnSlot = false;
+            hoveringUnlearnSlot = false;
+            
+            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
+            {
+                if (transmutationSlotContainers[i].ContainsPoint(Main.MouseScreen) && !transmutationItems[i].IsAir)
+                {
+                    hoveringTransmutationSlot = i;
+                    return;
+                }
+            }
+            
+            if (burnSlotContainer.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringBurnSlot = true;
+                return;
+            }
+            
+            if (unlearnSlotPanelContainerPicture.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringUnlearnSlot = true;
+                return;
+            }
+            
+            // Check for search box hovering
+            if (searchBoxPanel.ContainsPoint(Main.MouseScreen))
+            {
+                Main.hoverItemName = "Search for items by name";
+                Main.LocalPlayer.mouseInterface = true;
+            }
+        }
+
         private void BurnCurrentItem()
         {
             if (!burnSlot.IsAir && Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
@@ -306,6 +523,10 @@ namespace EquivalentExchange.UI.States
 
                 // Remove the item
                 burnSlot = new Item();
+                
+                // Update display to reflect the newly learned item
+                UpdateTransmutationSlots(emcPlayer);
+                UpdatePageInfo();
             }
         }
 
@@ -344,6 +565,9 @@ namespace EquivalentExchange.UI.States
 
                     // Show success message
                     Main.NewText($"Successfully transmuted {affordableCount}x {newItem.Name} for {totalEmcCost} EMC.", Color.LightGreen);
+                    
+                    // Update display
+                    UpdateTransmutationSlots(emcPlayer);
                 }
                 else
                 {
@@ -390,23 +614,34 @@ namespace EquivalentExchange.UI.States
                 Item selectedItem = transmutationItems[slotIndex];
                 RationalNumber emcCost = selectedItem.GetGlobalItem<EMCGlobalItem>().emc;
                 
-                // Check if player has enough EMC
+                // Check if player has enough EMC for at least one item
                 if (emcPlayer.storedEMC >= emcCost)
                 {
+                    // Calculate how many items we can actually create 
+                    RationalNumber affordableCount = emcPlayer.storedEMC / emcCost;
+                    // Round down to the nearest whole number
+                    int createdAmount = (int)Math.Floor(affordableCount.ToDouble());
+                    // Limit to max stack size
+                    createdAmount = Math.Min(createdAmount, selectedItem.maxStack);
+                    // Limit to requested amount
+                    createdAmount = Math.Min(createdAmount, amount);
+                    
                     if (Main.mouseItem.IsAir)
                     {
-                        // Create a new item with stack size of 1
+                        // Create a new item
                         Item newItem = new Item();
                         newItem.SetDefaults(selectedItem.type);
-                        newItem.stack = amount;
-                        
+                        newItem.stack = createdAmount;
+
                         // Give the item to the player
                         Main.mouseItem = newItem;
                     }
                     else if (Main.mouseItem.type == selectedItem.type && Main.mouseItem.stack < Main.mouseItem.maxStack)
                     {
                         // Add to existing stack
-                        Main.mouseItem.stack += Math.Min(amount, Main.mouseItem.maxStack - Main.mouseItem.stack);
+                        int spaceInStack = Main.mouseItem.maxStack - Main.mouseItem.stack;
+                        createdAmount = Math.Min(amount, spaceInStack);
+                        Main.mouseItem.stack += createdAmount;
                     }
                     else
                     {
@@ -414,8 +649,12 @@ namespace EquivalentExchange.UI.States
                         return false;
                     }
                     
-                    // Remove EMC
-                    emcPlayer.TryRemoveEMC(emcCost * amount);
+                    // Remove EMC based on actual number of items created
+                    emcPlayer.TryRemoveEMC(emcCost * createdAmount);
+                    
+                    // Update display
+                    UpdateTransmutationSlots(emcPlayer);
+                    
                     return true;
                 }
                 else
@@ -429,102 +668,6 @@ namespace EquivalentExchange.UI.States
                 }
             }
             return false;
-        }
-
-        public override void Update(GameTime gameTime)
-        {
-            base.Update(gameTime);
-            Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer);
-
-            // If the player's inventory is not open, also close the transmutation tablet UI
-            if (!Main.playerInventory && emcPlayer != null)
-            {
-                // Hide the UI if inventory is closed
-                EMCUI.TransmutationTabletVisible = false;
-                return;
-            }
-
-            // If the player is interacting with the UI, set mouseInterface to true
-            if (!Main.LocalPlayer.mouseInterface && mainPanel.ContainsPoint(Main.MouseScreen))
-            {
-                Main.LocalPlayer.mouseInterface = true;
-            }
-
-            // Handle right-click holding for continuous item creation
-            if (isRightMouseDown && activeRightClickSlot >= 0)
-            {
-                rightClickHoldTime++;
-
-                // After initial delay, start creating items regularly
-                if (rightClickHoldTime > INITIAL_HOLD_DELAY &&
-                    rightClickHoldTime % CONTINUOUS_ITEM_DELAY == 0)
-                {
-                    // Exponentially increase the amount created as the player holds the right mouse button for longer periods
-                    int amount = (int)Math.Pow(EXPONENTIAL_BASE_ITEM_INCREASE, (rightClickHoldTime - INITIAL_HOLD_DELAY) / CONTINUOUS_ITEM_DELAY);
-                    CreateItem(activeRightClickSlot, amount);
-                }
-            }
-
-            // Track which slot the mouse is hovering over
-            UpdateHoveredSlot();
-
-            // Update the display of transmutation slots and EMC value
-            updateDisplay();
-        }
-        
-        private void UpdateTransmutationSlots(EMCPlayer emcPlayer)
-        {
-            // Get the current page of affordable items
-            List<LearnedItemInfo> pageItems = emcPlayer.GetAffordableItemsPaginated(TRANSMUTATION_SLOT_COUNT, currentPage);
-            
-            // Clear previous items
-            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
-            {
-                transmutationItems[i] = new Item();
-                transmutationSlots[i].Item = new Item(); // Update UIItemImage with empty item
-            }
-
-            // Add new items to slots
-            for (int i = 0; i < pageItems.Count; i++)
-            {
-                // Create item instance
-                Item item = new Item();
-                item.SetDefaults(pageItems[i].ItemType);
-
-                // Store the item
-                transmutationItems[i] = item;
-                
-                // Update the UIItemImage with the new item
-                transmutationSlots[i].Item = item;
-            }
-        }
-        
-        private void UpdateHoveredSlot()
-        {
-            hoveringTransmutationSlot = -1;
-            hoveringBurnSlot = false;
-            hoveringUnlearnSlot = false;
-            
-            for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
-            {
-                if (transmutationSlotContainers[i].ContainsPoint(Main.MouseScreen) && !transmutationItems[i].IsAir)
-                {
-                    hoveringTransmutationSlot = i;
-                    return;
-                }
-            }
-            
-            if (burnSlotContainer.ContainsPoint(Main.MouseScreen))
-            {
-                hoveringBurnSlot = true;
-                return;
-            }
-            
-            if (unlearnSlotPanelContainerPicture.ContainsPoint(Main.MouseScreen))
-            {
-                hoveringUnlearnSlot = true;
-                return;
-            }
         }
 
         private void BurnSlot_OnLeftClick()
@@ -561,6 +704,11 @@ namespace EquivalentExchange.UI.States
                     {
                         // Show success message
                         Main.NewText($"Unlearned {unlearnSlot.Name}. You can no longer transmute this item.", Color.Orange);
+                        
+                        // Reset page since an item was removed from learned items
+                        currentPage = 0;
+                        UpdateTransmutationSlots(emcPlayer);
+                        UpdatePageInfo();
                     }
                     else
                     {

@@ -11,7 +11,6 @@ using Terraria.ModLoader.IO;
 
 namespace EquivalentExchange
 {
-	// Please read https://github.com/tModLoader/tModLoader/wiki/Basic-tModLoader-Modding-Guide#mod-skeleton-contents for more information about the various files in a mod.
 	public class EquivalentExchange : Mod
 	{
         // Routes packets to their handles or handles them directly

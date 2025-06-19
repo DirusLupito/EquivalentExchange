@@ -11,6 +11,8 @@ using Terraria.GameContent.UI.Elements;
 using Terraria.UI;
 using Terraria.ID;
 using Terraria.DataStructures;
+using System.Collections.Generic;
+using Terraria.Audio;
 namespace EquivalentExchange.UI.States
 {
     public class EnergyCondenserUIState : UIState
@@ -19,6 +21,8 @@ namespace EquivalentExchange.UI.States
         private UIPanel mainPanel;
         private UIText emcText;
         private UIText titleText;
+        private UIPanel lootButton; // Add this line
+        private UIText lootButtonText; // Add this line
         
         // Template slot
         private UIImage templateSlotContainer;
@@ -82,11 +86,156 @@ namespace EquivalentExchange.UI.States
             emcText.Top.Set(35f, 0f);
             mainPanel.Append(emcText);
 
+            // Add loot button
+            CreateLootButton();
+
             // Template slot
             CreateTemplateSlot();
             
             // Inventory slots
             CreateInventorySlots();
+        }
+
+        private void CreateLootButton()
+        {
+            // Loot button
+            lootButton = new UIPanel();
+            lootButton.Width.Set(100f, 0f);
+            lootButton.Height.Set(30f, 0f);
+            lootButton.Left.Set(PANEL_WIDTH - 120f, 0f); // Position at top right
+            lootButton.Top.Set(35f, 0f);
+            lootButton.BackgroundColor = new Color(100, 150, 100);
+            lootButton.BorderColor = new Color(80, 120, 80);
+            lootButton.OnLeftClick += LootButton_OnLeftClick;
+            lootButton.OnMouseOver += LootButton_OnMouseOver;
+            lootButton.OnMouseOut += LootButton_OnMouseOut;
+            mainPanel.Append(lootButton);
+
+            // Loot button text
+            lootButtonText = new UIText("Loot All", 0.8f);
+            lootButtonText.HAlign = 0.5f;
+            lootButtonText.VAlign = 0.5f;
+            lootButton.Append(lootButtonText);
+        }
+
+        private void LootButton_OnLeftClick(UIMouseEvent evt, UIElement listeningElement)
+        {
+            if (tileEntity == null) return;
+
+            // Collect all items from inventory (excluding template)
+            List<Item> itemsToLoot = new List<Item>();
+            
+            for (int i = 0; i < INVENTORY_SIZE; i++)
+            {
+                if (!tileEntity.inventory[i].IsAir)
+                {
+                    itemsToLoot.Add(tileEntity.inventory[i].Clone());
+                    tileEntity.inventory[i] = new Item();
+                }
+            }
+
+            // Get the player who is accessing the Energy Condenser
+            Player player = Main.LocalPlayer;
+            if (player == null || !player.active || player.dead)
+            {
+                return; // No active player to give items to
+            }
+
+            // Search through the player's inventory and build a map of item types to their indices
+            Dictionary<int, int> itemIndexMap = new Dictionary<int, int>();
+            for (int i = 0; i < player.inventory.Length; i++)
+            {
+                if (player.inventory[i].IsAir) continue;
+                if (!itemIndexMap.ContainsKey(player.inventory[i].type))
+                {
+                    itemIndexMap[player.inventory[i].type] = i;
+                }
+            }
+
+            // Give items to player
+            foreach (Item item in itemsToLoot)
+            {
+                // Check and see if we can add items to existing stacks
+                if (itemIndexMap.TryGetValue(item.type, out int existingIndex))
+                {
+                    // If we have an existing stack, try to add to it
+                    Item existingItem = player.inventory[existingIndex];
+                    int transferAmount = Math.Min(item.stack, existingItem.maxStack - existingItem.stack);
+                    if (transferAmount > 0)
+                    {
+                        existingItem.stack += transferAmount;
+                        item.stack -= transferAmount;
+
+                        // If the item is fully transferred, we can skip adding it again
+                        if (item.stack <= 0) continue;
+                    }
+                }
+
+                // If we still have items left, try to find an empty slot
+                bool addedToInventory = false;
+                for (int i = 0; i < player.inventory.Length; i++)
+                {
+                    if (player.inventory[i].IsAir)
+                    {
+                        player.inventory[i] = item;
+                        addedToInventory = true;
+                        break;
+                    }
+                }
+
+                // If the item still has stack/wasn't fully transferred, try to put it back into the first empty slot in the condenser
+                bool addedToCondenserInventory = false;
+                if (!addedToInventory && item.stack > 0)
+                {
+                    for (int i = 0; i < INVENTORY_SIZE; i++)
+                    {
+                        if (tileEntity.inventory[i].IsAir)
+                        {
+                            tileEntity.inventory[i] = item;
+                            addedToCondenserInventory = true;
+                            item.stack = 0; // Mark as transferred
+                            break;
+                        }
+                    }
+                }
+
+                // If we still have items left, drop them on the ground
+                if (!addedToInventory && !addedToCondenserInventory && item.stack > 0)
+                {
+                    player.QuickSpawnItem(player.GetSource_Misc("EnergyCondenserLoot"), item);
+                }
+
+            }
+
+            // Sync changes to server if in multiplayer
+            if (Main.netMode == NetmodeID.MultiplayerClient)
+            {
+                // Send clear inventory message to server
+                for (int i = 0; i < INVENTORY_SIZE; i++)
+                {
+                    EMCNetCodeSystem.SendModifyInventory(
+                        tileEntity.Position.X,
+                        tileEntity.Position.Y,
+                        i,
+                        new Item());
+                }
+            }
+
+            UpdateDisplay();
+            
+            // Play sound effect
+            SoundEngine.PlaySound(SoundID.Grab);
+        }
+
+        private void LootButton_OnMouseOver(UIMouseEvent evt, UIElement listeningElement)
+        {
+            lootButton.BackgroundColor = new Color(120, 170, 120);
+            Main.hoverItemName = "Loot all items from the Energy Condenser\n(Template item will remain)";
+        }
+
+        private void LootButton_OnMouseOut(UIMouseEvent evt, UIElement listeningElement)
+        {
+            lootButton.BackgroundColor = new Color(100, 150, 100);
         }
 
         private void CreateTemplateSlot()
