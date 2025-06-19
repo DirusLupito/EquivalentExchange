@@ -13,6 +13,9 @@ using Terraria.ID;
 using Terraria.DataStructures;
 using System.Collections.Generic;
 using Terraria.Audio;
+using Terraria.ModLoader;
+using EquivalentExchange.Common.GlobalItems;
+using EquivalentExchange.Common.Utilities;
 namespace EquivalentExchange.UI.States
 {
     public class EnergyCondenserUIState : UIState
@@ -21,8 +24,8 @@ namespace EquivalentExchange.UI.States
         private UIPanel mainPanel;
         private UIText emcText;
         private UIText titleText;
-        private UIPanel lootButton; // Add this line
-        private UIText lootButtonText; // Add this line
+        private UIPanel lootButton;
+        private UIText lootButtonText;
 
         // Template slot
         private UIImage templateSlotContainer;
@@ -53,6 +56,9 @@ namespace EquivalentExchange.UI.States
         // Tracking variables
         private bool hoveringTemplateSlot = false;
         private int hoveringInventorySlot = -1;
+
+        // Represents the progress bar for how close the condenser is to creating the template item
+        private UIEMCProgressBar progressBar;
 
         public void SetTileEntity(EnergyCondenserTileEntity entity)
         {
@@ -88,6 +94,9 @@ namespace EquivalentExchange.UI.States
 
             // Add loot button
             CreateLootButton();
+            
+            // Create progress bar
+            CreateProgressBar();
 
             // Template slot
             CreateTemplateSlot();
@@ -102,8 +111,9 @@ namespace EquivalentExchange.UI.States
             lootButton = new UIPanel();
             lootButton.Width.Set(100f, 0f);
             lootButton.Height.Set(30f, 0f);
-            lootButton.Left.Set(PANEL_WIDTH - 120f, 0f); // Position at top right
-            lootButton.Top.Set(35f, 0f);
+            // Position at top right, as far away from the right as the last slot
+            lootButton.Left.Set(PANEL_WIDTH - 140f, 0f);
+            lootButton.Top.Set(30f, 0f);
             lootButton.BackgroundColor = new Color(100, 150, 100);
             lootButton.BorderColor = new Color(80, 120, 80);
             lootButton.OnLeftClick += LootButton_OnLeftClick;
@@ -296,6 +306,18 @@ namespace EquivalentExchange.UI.States
                 inventorySlotImages[i].Height.Set(32f, 0f);
                 inventorySlotContainers[i].Append(inventorySlotImages[i]);
             }
+        }
+
+        private void CreateProgressBar()
+        {
+            progressBar = new UIEMCProgressBar();
+            progressBar.Width.Set(30f, 0f);
+            progressBar.Height.Set(SLOT_SPACING * 6, 0f);
+            progressBar.Left.Set(20f, 0f);
+            progressBar.Top.Set(65f + SLOT_SPACING, 0f); // Template slot is at 65f, so add 1 SLOT_SPACING to position it below
+            // Controls the color of the progress bar
+            progressBar.BarColor = new Color(0, 200, 255); // Bright blue color
+            mainPanel.Append(progressBar);
         }
 
         private void TemplateSlot_OnLeftClick(UIMouseEvent evt, UIElement listeningElement)
@@ -571,6 +593,28 @@ namespace EquivalentExchange.UI.States
 
             // Update EMC text
             emcText.SetText($"EMC: {tileEntity.storedEMC}");
+            
+            // Update progress bar based on template item's EMC value
+            if (!tileEntity.templateItem.IsAir)
+            {
+                // Get EMC value of template item using the mod's EMC system
+                RationalNumber templateEMC = tileEntity.templateItem.GetGlobalItem<EMCGlobalItem>().emc;
+                
+                if (templateEMC > 0)
+                {
+                    double progress = (double)(tileEntity.storedEMC / templateEMC);
+                    progressBar.SetProgress(progress);
+                }
+                else
+                {
+                    progressBar.SetProgress(0f);
+                }
+            }
+            else
+            {
+                // No template item set
+                progressBar.SetProgress(0f);
+            }
 
             // Update template slot
             templateSlotImage.Item = tileEntity.templateItem;

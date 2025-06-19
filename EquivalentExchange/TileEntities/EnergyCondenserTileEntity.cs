@@ -204,7 +204,7 @@ namespace EquivalentExchange.TileEntities
             if (Main.netMode == NetmodeID.MultiplayerClient)
                 return;
 
-            // Existing processing logic
+            // Handles creating and consuming items
             ProcessItems();
 
             // Sync periodically
