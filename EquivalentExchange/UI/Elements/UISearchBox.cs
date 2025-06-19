@@ -20,17 +20,17 @@ namespace EquivalentExchange.UI.Elements
         private int cursorPosition = 0;
         private int cursorBlinkTimer = 0;
         private int maxTextLength = 20; // Limit text length to prevent overflow
-        
+
         // Properties
         public string Text => searchText;
         public bool IsFocused => focused;
         public Color TextColor { get; set; } = Color.White;
         public Color PlaceholderColor { get; set; } = new Color(150, 150, 150);
         public string PlaceholderText { get; set; } = "Search...";
-        public int MaxTextLength 
-        { 
-            get => maxTextLength; 
-            set => maxTextLength = Math.Max(1, value); 
+        public int MaxTextLength
+        {
+            get => maxTextLength;
+            set => maxTextLength = Math.Max(1, value);
         }
 
         // Event for when search text changes
@@ -110,7 +110,7 @@ namespace EquivalentExchange.UI.Elements
             // Get new input
             var keyboardState = Main.keyState;
             var oldKeyboardState = Main.oldKeyState;
-            
+
             // Process typed characters
             foreach (var key in keyboardState.GetPressedKeys())
             {
@@ -124,37 +124,37 @@ namespace EquivalentExchange.UI.Elements
                         OnTextChanged?.Invoke(searchText);
                         continue;
                     }
-                    
+
                     // Handle delete
-                    if (key == Keys.Delete && 
-                        searchText.Length > 0 && 
+                    if (key == Keys.Delete &&
+                        searchText.Length > 0 &&
                         cursorPosition < searchText.Length)
                     {
                         searchText = searchText.Remove(cursorPosition, 1);
                         OnTextChanged?.Invoke(searchText);
                         continue;
                     }
-                    
+
                     // Handle arrow keys
                     if (key == Keys.Left && cursorPosition > 0)
                     {
                         cursorPosition--;
                         continue;
                     }
-                    
+
                     if (key == Keys.Right && cursorPosition < searchText.Length)
                     {
                         cursorPosition++;
                         continue;
                     }
-                    
+
                     // Handle Enter to unfocus
                     if (key == Keys.Enter)
                     {
                         Unfocus();
                         continue;
                     }
-                    
+
                     // Get text input
                     string keyString = GetKeyString(key);
                     if (!string.IsNullOrEmpty(keyString) && searchText.Length < MaxTextLength)
@@ -170,20 +170,20 @@ namespace EquivalentExchange.UI.Elements
         // Convert keyboard key to string
         private string GetKeyString(Keys key)
         {
-            bool shift = Main.keyState.IsKeyDown(Keys.LeftShift) || 
+            bool shift = Main.keyState.IsKeyDown(Keys.LeftShift) ||
                         Main.keyState.IsKeyDown(Keys.RightShift);
-                        
+
             // Handle letters
             if (key >= Keys.A && key <= Keys.Z)
             {
                 return shift ? key.ToString() : key.ToString().ToLower();
             }
-            
+
             // Handle numbers
             if (key >= Keys.D0 && key <= Keys.D9)
             {
                 if (!shift) return key.ToString().Substring(1);
-                
+
                 // Handle shift + number special characters
                 switch (key)
                 {
@@ -199,13 +199,13 @@ namespace EquivalentExchange.UI.Elements
                     case Keys.D9: return "(";
                 }
             }
-            
+
             // Handle numpad
             if (key >= Keys.NumPad0 && key <= Keys.NumPad9)
             {
                 return (key - Keys.NumPad0).ToString();
             }
-            
+
             // Handle special keys
             switch (key)
             {
@@ -226,7 +226,7 @@ namespace EquivalentExchange.UI.Elements
                 case Keys.Decimal: return ".";
                 case Keys.Divide: return "/";
             }
-            
+
             return "";
         }
 
@@ -237,19 +237,19 @@ namespace EquivalentExchange.UI.Elements
             // Calculate position for text
             CalculatedStyle dimensions = GetDimensions();
             Vector2 textPos = new Vector2(dimensions.X + 10, dimensions.Y + 8);
-            
+
             // Draw the text
-            string displayText = string.IsNullOrEmpty(searchText) && !focused 
+            string displayText = string.IsNullOrEmpty(searchText) && !focused
                 ? PlaceholderText
                 : searchText;
-            
-            Color color = string.IsNullOrEmpty(searchText) && !focused 
+
+            Color color = string.IsNullOrEmpty(searchText) && !focused
                 ? PlaceholderColor
                 : TextColor;
-            
+
             // Draw the text
             Utils.DrawBorderString(spriteBatch, displayText, textPos, color);
-            
+
             // Draw cursor if focused
             if (focused && cursorBlinkTimer / 30 % 2 == 0)
             {
@@ -261,13 +261,13 @@ namespace EquivalentExchange.UI.Elements
                     cursorPos.Y = textPos.Y + (FontAssets.MouseText.Value.MeasureString(displayText).Y - 18) / 2;
                 else
                     cursorPos.Y = textPos.Y;
-                
+
                 // Draw cursor line
-                    spriteBatch.Draw(
-                    TextureAssets.MagicPixel.Value,
-                    new Rectangle((int)cursorPos.X, (int)cursorPos.Y, 1, 18),
-                    Color.White
-                );
+                spriteBatch.Draw(
+                TextureAssets.MagicPixel.Value,
+                new Rectangle((int)cursorPos.X, (int)cursorPos.Y, 1, 18),
+                Color.White
+            );
             }
         }
 

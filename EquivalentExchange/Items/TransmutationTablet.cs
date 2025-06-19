@@ -9,7 +9,7 @@ namespace EquivalentExchange.Items
     public class TransmutationTablet : ModItem
     {
         public override void SetStaticDefaults()
-        {   
+        {
             CreativeItemSacrificesCatalog.Instance.SacrificeCountNeededByItemId[Type] = 1;
         }
 

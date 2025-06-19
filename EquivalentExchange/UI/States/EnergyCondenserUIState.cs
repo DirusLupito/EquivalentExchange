@@ -23,19 +23,19 @@ namespace EquivalentExchange.UI.States
         private UIText titleText;
         private UIPanel lootButton; // Add this line
         private UIText lootButtonText; // Add this line
-        
+
         // Template slot
         private UIImage templateSlotContainer;
         private UIItemImage templateSlotImage;
-        
+
         // Inventory slots (7x8 grid = 56 slots)
         private UIImage[] inventorySlotContainers;
         private UIItemImage[] inventorySlotImages;
 
         // Constants
-        
+
         // Amount of item slots in the inventory
-        private const int INVENTORY_WIDTH = 8; 
+        private const int INVENTORY_WIDTH = 8;
         private const int INVENTORY_HEIGHT = 7;
         private const int INVENTORY_SIZE = INVENTORY_WIDTH * INVENTORY_HEIGHT; // Now 56 instead of 91
 
@@ -46,10 +46,10 @@ namespace EquivalentExchange.UI.States
         // UI dimensions of the main panel
         private const float PANEL_WIDTH = 550f;
         private const float PANEL_HEIGHT = 480f;
-        
+
         // Reference to the tile entity
         private EnergyCondenserTileEntity tileEntity;
-        
+
         // Tracking variables
         private bool hoveringTemplateSlot = false;
         private int hoveringInventorySlot = -1;
@@ -91,7 +91,7 @@ namespace EquivalentExchange.UI.States
 
             // Template slot
             CreateTemplateSlot();
-            
+
             // Inventory slots
             CreateInventorySlots();
         }
@@ -124,7 +124,7 @@ namespace EquivalentExchange.UI.States
 
             // Collect all items from inventory (excluding template)
             List<Item> itemsToLoot = new List<Item>();
-            
+
             for (int i = 0; i < INVENTORY_SIZE; i++)
             {
                 if (!tileEntity.inventory[i].IsAir)
@@ -222,7 +222,7 @@ namespace EquivalentExchange.UI.States
             }
 
             UpdateDisplay();
-            
+
             // Play sound effect
             SoundEngine.PlaySound(SoundID.Grab);
         }
@@ -281,11 +281,11 @@ namespace EquivalentExchange.UI.States
                 inventorySlotContainers[i].Top.Set(y, 0f);
                 inventorySlotContainers[i].Width.Set(SLOT_SIZE, 0f);
                 inventorySlotContainers[i].Height.Set(SLOT_SIZE, 0f);
-                
+
                 int slotIndex = i; // Capture for closure
                 inventorySlotContainers[i].OnLeftClick += (evt, element) => InventorySlot_OnLeftClick(slotIndex);
                 inventorySlotContainers[i].OnRightClick += (evt, element) => InventorySlot_OnRightClick(slotIndex);
-                
+
                 mainPanel.Append(inventorySlotContainers[i]);
 
                 // Item image
@@ -307,7 +307,7 @@ namespace EquivalentExchange.UI.States
             {
                 Item newTemplateItem = Main.mouseItem.IsAir ? new Item() : Main.mouseItem.Clone();
                 newTemplateItem.stack = 1;
-                
+
                 // In multiplayer, send change to server first
                 if (Main.netMode == NetmodeID.MultiplayerClient)
                 {
@@ -345,14 +345,14 @@ namespace EquivalentExchange.UI.States
                     tileEntity.TrySetTemplate(new Item());
                 }
             }
-            
+
             UpdateDisplay();
         }
 
         private void TemplateSlot_OnRightClick(UIMouseEvent evt, UIElement listeningElement)
         {
             if (tileEntity == null) return;
-        
+
             // Right click clears template
             if (Main.netMode == NetmodeID.MultiplayerClient)
             {
@@ -365,7 +365,7 @@ namespace EquivalentExchange.UI.States
             {
                 tileEntity.TrySetTemplate(new Item());
             }
-            
+
             UpdateDisplay();
         }
 
@@ -374,7 +374,7 @@ namespace EquivalentExchange.UI.States
             if (tileEntity == null || slotIndex < 0 || slotIndex >= INVENTORY_SIZE) return;
 
             Item slotItem = tileEntity.inventory[slotIndex];
-            
+
             if (!Main.mouseItem.IsAir && !slotItem.IsAir)
             {
                 // Both mouse and slot have items - try to stack or swap
@@ -384,10 +384,10 @@ namespace EquivalentExchange.UI.States
                     int transferAmount = Math.Min(Main.mouseItem.stack, slotItem.maxStack - slotItem.stack);
                     slotItem.stack += transferAmount;
                     Main.mouseItem.stack -= transferAmount;
-                    
+
                     if (Main.mouseItem.stack <= 0)
                         Main.mouseItem = new Item();
-                        
+
                     // Sync change to server
                     if (Main.netMode == NetmodeID.MultiplayerClient)
                     {
@@ -403,7 +403,7 @@ namespace EquivalentExchange.UI.States
                     // Swap items - direct reference swap
                     Item temp = Main.mouseItem;
                     Main.mouseItem = slotItem;
-                    
+
                     // Send both changes to server
                     if (Main.netMode == NetmodeID.MultiplayerClient)
                     {
@@ -414,7 +414,7 @@ namespace EquivalentExchange.UI.States
                             slotIndex,
                             temp);
                     }
-                    
+
                     tileEntity.inventory[slotIndex] = temp;
                 }
             }
@@ -422,7 +422,7 @@ namespace EquivalentExchange.UI.States
             {
                 // Put mouse item in empty slot
                 tileEntity.inventory[slotIndex] = Main.mouseItem;
-                
+
                 // Sync to server
                 if (Main.netMode == NetmodeID.MultiplayerClient)
                 {
@@ -432,7 +432,7 @@ namespace EquivalentExchange.UI.States
                         slotIndex,
                         tileEntity.inventory[slotIndex]);
                 }
-                
+
                 Main.mouseItem = new Item();
             }
             else if (Main.mouseItem.IsAir && !slotItem.IsAir)
@@ -440,7 +440,7 @@ namespace EquivalentExchange.UI.States
                 // Take item from slot - direct reference
                 Main.mouseItem = slotItem;
                 tileEntity.inventory[slotIndex] = new Item();
-                
+
                 // Sync to server
                 if (Main.netMode == NetmodeID.MultiplayerClient)
                 {
@@ -451,7 +451,7 @@ namespace EquivalentExchange.UI.States
                         new Item());
                 }
             }
-            
+
             UpdateDisplay();
         }
 
@@ -460,18 +460,18 @@ namespace EquivalentExchange.UI.States
             if (tileEntity == null || slotIndex < 0 || slotIndex >= INVENTORY_SIZE) return;
 
             Item slotItem = tileEntity.inventory[slotIndex];
-            
+
             if (!slotItem.IsAir)
             {
                 // Right click takes half the stack (or 1 if stack is 1)
                 int takeAmount = Math.Max(1, slotItem.stack / 2);
-                
+
                 if (Main.mouseItem.IsAir)
                 {
                     Main.mouseItem = slotItem.Clone();
                     Main.mouseItem.stack = takeAmount;
                     slotItem.stack -= takeAmount;
-                    
+
                     if (slotItem.stack <= 0)
                         tileEntity.inventory[slotIndex] = new Item();
                 }
@@ -481,7 +481,7 @@ namespace EquivalentExchange.UI.States
                     int addAmount = Math.Min(takeAmount, Main.mouseItem.maxStack - Main.mouseItem.stack);
                     Main.mouseItem.stack += addAmount;
                     slotItem.stack -= addAmount;
-                    
+
                     if (slotItem.stack <= 0)
                         tileEntity.inventory[slotIndex] = new Item();
                 }
@@ -492,11 +492,11 @@ namespace EquivalentExchange.UI.States
                 tileEntity.inventory[slotIndex] = Main.mouseItem.Clone();
                 tileEntity.inventory[slotIndex].stack = 1;
                 Main.mouseItem.stack--;
-                
+
                 if (Main.mouseItem.stack <= 0)
                     Main.mouseItem = new Item();
             }
-            
+
             UpdateDisplay();
         }
 
@@ -545,7 +545,7 @@ namespace EquivalentExchange.UI.States
 
             // Update hover states
             UpdateHoverStates();
-            
+
             // Update display periodically
             UpdateDisplay();
         }
@@ -554,7 +554,7 @@ namespace EquivalentExchange.UI.States
         {
             hoveringTemplateSlot = templateSlotContainer.ContainsPoint(Main.MouseScreen);
             hoveringInventorySlot = -1;
-            
+
             for (int i = 0; i < INVENTORY_SIZE; i++)
             {
                 if (inventorySlotContainers[i].ContainsPoint(Main.MouseScreen))

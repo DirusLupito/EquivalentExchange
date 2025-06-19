@@ -15,7 +15,7 @@ namespace EquivalentExchange.Common.Systems
             ModifyCondenserTemplate,
             RequestCondenserSync,
         }
-        
+
         public static void SendRequestAccess(int i, int j)
         {
             if (Main.netMode != NetmodeID.SinglePlayer)
@@ -27,7 +27,7 @@ namespace EquivalentExchange.Common.Systems
                 packet.Send();
             }
         }
-        
+
         public static void SendReleaseAccess(int i, int j)
         {
             if (Main.netMode != NetmodeID.SinglePlayer)
@@ -39,7 +39,7 @@ namespace EquivalentExchange.Common.Systems
                 packet.Send();
             }
         }
-        
+
         public static void SendModifyInventory(int i, int j, int slotIndex, Item item)
         {
             if (Main.netMode != NetmodeID.SinglePlayer)
@@ -53,7 +53,7 @@ namespace EquivalentExchange.Common.Systems
                 packet.Send();
             }
         }
-        
+
         public static void SendModifyTemplate(int i, int j, Item item)
         {
             if (Main.netMode != NetmodeID.SinglePlayer)

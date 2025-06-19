@@ -15,13 +15,13 @@ namespace EquivalentExchange.Common.Systems
         public static TransmutationTabletUIState transmutationTabletUI;
         public static UserInterface transmutationTabletInterface;
         private static bool _transmutationTabletVisible = false;
-        
+
         // Energy Condenser UI
         public static EnergyCondenserUIState energyCondenserUI;
         public static UserInterface energyCondenserInterface;
         private static bool _energyCondenserVisible = false;
         private static EnergyCondenserTileEntity _currentTileEntity = null;
-        
+
         public static bool TransmutationTabletVisible
         {
             get => _transmutationTabletVisible;
@@ -30,7 +30,7 @@ namespace EquivalentExchange.Common.Systems
                 if (_transmutationTabletVisible != value)
                 {
                     _transmutationTabletVisible = value;
-                    
+
                     if (_transmutationTabletVisible)
                         transmutationTabletInterface?.SetState(transmutationTabletUI);
                     else
@@ -47,7 +47,7 @@ namespace EquivalentExchange.Common.Systems
                 if (_energyCondenserVisible != value)
                 {
                     _energyCondenserVisible = value;
-                    
+
                     if (_energyCondenserVisible)
                         energyCondenserInterface?.SetState(energyCondenserUI);
                     else
@@ -65,7 +65,7 @@ namespace EquivalentExchange.Common.Systems
                 transmutationTabletUI.Activate();
                 transmutationTabletInterface = new UserInterface();
                 TransmutationTabletVisible = false;
-                
+
                 // Initialize the Energy Condenser UI
                 energyCondenserUI = new EnergyCondenserUIState();
                 energyCondenserUI.Activate();
@@ -89,7 +89,7 @@ namespace EquivalentExchange.Common.Systems
             // Update the UIs if they're visible
             if (_transmutationTabletVisible && transmutationTabletInterface != null)
                 transmutationTabletInterface.Update(gameTime);
-                
+
             if (_energyCondenserVisible && energyCondenserInterface != null)
                 energyCondenserInterface.Update(gameTime);
         }
@@ -102,18 +102,20 @@ namespace EquivalentExchange.Common.Systems
                 // Insert transmutation tablet UI layer
                 layers.Insert(inventoryIndex + 1, new LegacyGameInterfaceLayer(
                     "EquivalentExchange: Philosophers Stone UI",
-                    delegate {
+                    delegate
+                    {
                         if (TransmutationTabletVisible && transmutationTabletInterface != null)
                             transmutationTabletInterface.Draw(Main.spriteBatch, new GameTime());
                         return true;
                     },
                     InterfaceScaleType.UI)
                 );
-                
+
                 // Insert energy condenser UI layer
                 layers.Insert(inventoryIndex + 2, new LegacyGameInterfaceLayer(
                     "EquivalentExchange: Energy Condenser UI",
-                    delegate {
+                    delegate
+                    {
                         if (EnergyCondenserVisible && energyCondenserInterface != null)
                             energyCondenserInterface.Draw(Main.spriteBatch, new GameTime());
                         return true;
@@ -162,7 +164,7 @@ namespace EquivalentExchange.Common.Systems
                     _currentTileEntity.ReleaseAccess(Main.myPlayer);
                 }
             }
-            
+
             EnergyCondenserVisible = false;
             _currentTileEntity = null;
         }

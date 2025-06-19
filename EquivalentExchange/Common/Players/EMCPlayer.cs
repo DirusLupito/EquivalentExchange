@@ -43,13 +43,13 @@ namespace EquivalentExchange.Common.Players
             // Save storedEMC as numerator/denominator
             tag.Add("StoredEMCNumerator", storedEMC.Numerator);
             tag.Add("StoredEMCDenominator", storedEMC.Denominator);
-            
+
             // Save learned items
             List<int> learnedItemTypes = new List<int>();
             List<long> learnedItemEMCNumerators = new List<long>();
             List<long> learnedItemEMCDenominators = new List<long>();
             List<string> learnedItemNames = new List<string>();
-            
+
             foreach (var item in learnedItems.Values)
             {
                 // Skip items that have already been learned
@@ -60,7 +60,7 @@ namespace EquivalentExchange.Common.Players
                 learnedItemEMCDenominators.Add(item.EMCValue.Denominator);
                 learnedItemNames.Add(item.Name);
             }
-            
+
             tag.Add("LearnedItemTypes", learnedItemTypes);
             tag.Add("LearnedItemEMCNumerators", learnedItemEMCNumerators);
             tag.Add("LearnedItemEMCDenominators", learnedItemEMCDenominators);
@@ -82,12 +82,12 @@ namespace EquivalentExchange.Common.Players
                 // Backward compatibility
                 storedEMC = new RationalNumber(tag.GetLong("StoredEMC"), 1);
             }
-            
+
             // Load learned items
             if (tag.ContainsKey("LearnedItemTypes"))
             {
                 List<int> itemTypes = tag.Get<List<int>>("LearnedItemTypes");
-                
+
                 // Check which format of data we have
                 if (tag.ContainsKey("LearnedItemEMCNumerators") && tag.ContainsKey("LearnedItemEMCDenominators"))
                 {
@@ -97,7 +97,7 @@ namespace EquivalentExchange.Common.Players
                     List<string> itemNames = tag.Get<List<string>>("LearnedItemNames");
 
                     List<int> itemTypesAddedSoFar = new List<int>();
-                    
+
                     learnedItems.Clear();
                     for (int i = 0; i < itemTypes.Count; i++)
                     {
@@ -136,7 +136,7 @@ namespace EquivalentExchange.Common.Players
             }
             return false;
         }
-        
+
         // Learn a new item
         public void LearnItem(Item item, RationalNumber emcValue)
         {
@@ -154,19 +154,19 @@ namespace EquivalentExchange.Common.Players
                 };
             }
         }
-        
+
         // Check if player has learned an item
         public bool HasLearnedItem(int itemType)
         {
             return learnedItems.Values.Any(item => item.ItemType == itemType);
         }
-        
+
         // Get the count most expensive items learned (in terms of EMC)
         public List<LearnedItemInfo> GetMostExpensiveItems(int count)
         {
             return learnedItems.Values.Take(count).ToList();
         }
-        
+
         // Get all learned items in descending EMC order
         public IEnumerable<LearnedItemInfo> GetAllLearnedItems()
         {
@@ -210,7 +210,7 @@ namespace EquivalentExchange.Common.Players
         {
             // Find the entry with matching item type
             var itemToRemove = learnedItems.FirstOrDefault(pair => pair.Value.ItemType == itemType);
-            
+
             // If found, remove it
             if (itemToRemove.Key != default)
             {

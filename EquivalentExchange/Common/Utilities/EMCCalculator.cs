@@ -91,20 +91,20 @@ namespace EquivalentExchange.Common.Utilities
         private static List<Item> GetAllItems()
         {
             List<Item> allItems = new List<Item>();
-            
+
             // Iterate through all vanilla items
             for (int i = 1; i < ItemID.Count; i++)
             {
                 Item item = new Item();
                 item.SetDefaults(i);
-                
+
                 // Skip items with no name or empty names
                 if (string.IsNullOrEmpty(item.Name))
                     continue;
-                
+
                 allItems.Add(item);
             }
-            
+
             // Also iterate through all modded items
             foreach (var mod in ModLoader.Mods)
             {
@@ -131,7 +131,7 @@ namespace EquivalentExchange.Common.Utilities
                     allItems.Add(item);
                 }
             }
-            
+
             return allItems;
         }
 
