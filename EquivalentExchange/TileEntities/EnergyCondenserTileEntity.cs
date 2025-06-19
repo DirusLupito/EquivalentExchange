@@ -12,7 +12,7 @@ namespace EquivalentExchange.TileEntities
 {
     public class EnergyCondenserTileEntity : ModTileEntity
     {
-        // Add tracking for which player is using this condenser
+        // Tracks which player is using this condenser
         public int CurrentUser { get; private set; } = -1; // -1 means no user
 
         // Constants
@@ -118,7 +118,7 @@ namespace EquivalentExchange.TileEntities
             }
         }
 
-        // Add this method to handle player access requests
+        // Handles player access requests
         public bool RequestAccess(int playerIndex)
         {
             // If condenser is not in use or the requesting player is already using it
@@ -135,8 +135,8 @@ namespace EquivalentExchange.TileEntities
             }
             return false;
         }
-        
-        // Add this method to handle releasing access
+
+        // Handles releasing access
         public void ReleaseAccess(int playerIndex)
         {
             if (CurrentUser == playerIndex)
@@ -150,8 +150,8 @@ namespace EquivalentExchange.TileEntities
                 }
             }
         }
-        
-        // Add method to handle item placement from client
+
+        // Handles item placement from client
         public bool TryPlaceItem(int slotIndex, Item item, int playerIndex)
         {
             // Only allow current user to modify inventory
@@ -172,8 +172,8 @@ namespace EquivalentExchange.TileEntities
             }
             return false;
         }
-        
-        // Add method to handle item removal from client
+
+        // Handles item removal from client
         public bool TryTakeItem(int slotIndex, int playerIndex, out Item item)
         {
             item = new Item();
@@ -206,7 +206,7 @@ namespace EquivalentExchange.TileEntities
 
             // Existing processing logic
             ProcessItems();
-            
+
             // Sync periodically
             lastEMCSync++;
             if (lastEMCSync >= EMC_SYNC_INTERVAL)
