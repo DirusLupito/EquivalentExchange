@@ -1,4 +1,5 @@
 using System;
+using EquivalentExchange.UI.States;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -22,7 +23,7 @@ namespace EquivalentExchange.UI.Elements
         public UIEMCProgressBar()
         {
             Width.Set(30f, 0f);
-            Height.Set(350f, 0f);
+            Height.Set(EnergyCondenserUIState.SLOT_SPACING * 6, 0f);
             _progress = 0f;
         }
         

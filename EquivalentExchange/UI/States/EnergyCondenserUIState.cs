@@ -43,8 +43,8 @@ namespace EquivalentExchange.UI.States
         private const int INVENTORY_SIZE = INVENTORY_WIDTH * INVENTORY_HEIGHT; // Now 56 instead of 91
 
         // UI dimensions of the item slots
-        private const float SLOT_SIZE = 52f;
-        private const float SLOT_SPACING = 54f;
+        public const float SLOT_SIZE = 52f;
+        public const float SLOT_SPACING = 54f;
 
         // UI dimensions of the main panel
         private const float PANEL_WIDTH = 550f;
