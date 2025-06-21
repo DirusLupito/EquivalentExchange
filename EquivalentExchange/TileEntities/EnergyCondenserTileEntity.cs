@@ -261,6 +261,9 @@ namespace EquivalentExchange.TileEntities
                 }
             }
 
+            // Reset items processed since consummption of items should not count towards creation of new items
+            itemsProcessed = 0;
+
             // Create template items if we have enough EMC
             while (storedEMC >= templateEMC && itemsProcessed < ITEMS_PER_TICK)
             {
@@ -286,7 +289,7 @@ namespace EquivalentExchange.TileEntities
                     int emptySlot = FindEmptySlot();
                     if (emptySlot == -1)
                         break; // No empty slots
-                        
+
                     // Create the item
                     inventory[emptySlot] = templateItem.Clone();
                     inventory[emptySlot].stack = 1;
