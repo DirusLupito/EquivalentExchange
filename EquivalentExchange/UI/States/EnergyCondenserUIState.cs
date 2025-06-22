@@ -13,7 +13,6 @@ using Terraria.ID;
 using Terraria.DataStructures;
 using System.Collections.Generic;
 using Terraria.Audio;
-using Terraria.ModLoader;
 using EquivalentExchange.Common.GlobalItems;
 using EquivalentExchange.Common.Utilities;
 namespace EquivalentExchange.UI.States

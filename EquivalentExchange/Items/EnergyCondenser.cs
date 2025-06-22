@@ -30,7 +30,7 @@ namespace EquivalentExchange.Items
         public override void AddRecipes()
         {
             Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.Diamond, 6);    
+            recipe.AddIngredient(ItemID.Diamond, 6);
             recipe.AddIngredient(ItemID.Ruby, 2);
             recipe.AddIngredient(ItemID.Obsidian, 10);
             recipe.AddIngredient(ItemID.StoneBlock, 10);

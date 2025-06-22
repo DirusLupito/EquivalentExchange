@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using Terraria;
 using Terraria.ModLoader;
 using Terraria.UI;
-using Terraria.ID;
 using EquivalentExchange.Common.Players;
 
 namespace EquivalentExchange.Common.Systems

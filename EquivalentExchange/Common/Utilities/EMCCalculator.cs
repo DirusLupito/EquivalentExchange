@@ -295,6 +295,7 @@ namespace EquivalentExchange.Common.Utilities
                     emcValues[item.type] = item.value > 0 ? new RationalNumber(item.value, 5) : RationalNumber.One;
                 }
             }
+            long stringBuilderTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             // Log the final EMC values
             LogMessage("Final EMC values calculated:");
             StringBuilder sb = new StringBuilder();
@@ -303,6 +304,7 @@ namespace EquivalentExchange.Common.Utilities
                 sb.AppendLine($"Item: {allItems.FirstOrDefault(i => i.type == kvp.Key)?.Name ?? "Unknown"} (Type: {kvp.Key}) - EMC: {kvp.Value}");
             }
             LogMessage(sb.ToString());
+            LogMessage($"StringBuilder took {DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - stringBuilderTime} ms to build the final EMC values string.");
 
             // End timer and log the total time taken
             long endTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -451,25 +453,21 @@ namespace EquivalentExchange.Common.Utilities
             emcValues[ItemID.SunMask] = new RationalNumber(1000, 1);
 
             // Treasure bags should not be learnable, so we set their EMC to 0
-            emcValues[ItemID.KingSlimeBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.EyeOfCthulhuBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.EaterOfWorldsBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.BrainOfCthulhuBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.QueenBeeBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.SkeletronBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.WallOfFleshBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.DestroyerBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.TwinsBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.SkeletronPrimeBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.PlanteraBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.GolemBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.FishronBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.CultistBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.MoonLordBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.DeerclopsBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.QueenSlimeBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.FairyQueenBossBag] = RationalNumber.Zero;
-            emcValues[ItemID.BossBagBetsy] = RationalNumber.Zero;
+            bool[] treasureBagSetFactory = ItemID.Sets.BossBag;
+            // Extract the ids of all treasure bags
+            List<int> treasureBagIds = new List<int>();
+            for (int i = 0; i < treasureBagSetFactory.Length; i++)
+            {
+                if (treasureBagSetFactory[i])
+                {
+                    treasureBagIds.Add(i);
+                }
+            }
+            // Set the EMC value of all treasure bags to 0
+            foreach (int bagId in treasureBagIds)
+            {
+                emcValues[bagId] = RationalNumber.Zero;
+            }
 
             // Desert fossils should be set to 200 since they could be transformed into very valuable items, albeit with a low chance
             emcValues[ItemID.DesertFossil] = new RationalNumber(200, 1);
@@ -486,6 +484,23 @@ namespace EquivalentExchange.Common.Utilities
             // Advanced combat techniques and its second volume should be worth 5000 since it is rare and can empower the town npcs
             emcValues[ItemID.CombatBook] = new RationalNumber(5000, 1);
             emcValues[ItemID.CombatBookVolumeTwo] = new RationalNumber(5000, 1);
+
+            // Crates should not be learnable, so we set their EMC to 0
+            bool[] fishingCrateSetFactory = ItemID.Sets.IsFishingCrate;
+            // Extract the ids of all fishing crates
+            List<int> fishingCrateIds = new List<int>();
+            for (int i = 0; i < fishingCrateSetFactory.Length; i++)
+            {
+                if (fishingCrateSetFactory[i])
+                {
+                    fishingCrateIds.Add(i);
+                }
+            }
+            // Set the EMC value of all fishing crates to 0
+            foreach (int crateId in fishingCrateIds)
+            {
+                emcValues[crateId] = RationalNumber.Zero;
+            }
         }
     }
 }

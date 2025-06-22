@@ -12,7 +12,6 @@ using EquivalentExchange.Common.GlobalItems;
 using EquivalentExchange.Common.Systems;
 using EquivalentExchange.UI.Elements;
 using System.Linq;
-using Terraria.UI.Chat;
 
 namespace EquivalentExchange.UI.States
 {
