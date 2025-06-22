@@ -18,7 +18,7 @@ namespace EquivalentExchange.Common.GlobalItems
 
         // Static flag to check if the EMC calculation algorithm has been run
         public static bool EMCAlgorithmInitialized { get; set; } = false;
-        
+
         // Static localized text for tooltip
         public static LocalizedText EMCValueText { get; private set; }
 
@@ -65,14 +65,35 @@ namespace EquivalentExchange.Common.GlobalItems
             {
                 OverrideColor = new Color(255, 255, 255)
             });
-            
+
             // Add stack EMC value if applicable
-            if (item.stack > 1) {
+            if (item.stack > 1)
+            {
                 tooltips.Add(new TooltipLine(Mod, "StackEMCValue", $"Stack EMC: {emc * item.stack}")
                 {
                     OverrideColor = new Color(200, 200, 200)
                 });
             }
+        }
+        
+
+        // Explains the nontrivial cloning process for this GlobalItem that
+        // involves NOT copying the emc value from the original item,
+        // but instead setting it based on the predefined values in ItemEMCValues.
+        public override GlobalItem Clone(Item item, Item itemClone)
+        {
+            EMCGlobalItem clone = (EMCGlobalItem)base.Clone(item, itemClone);
+            // Get the EMC from the dictionary if it exists
+            if (ItemEMCValues.TryGetValue(item.type, out RationalNumber predefinedEMC))
+            {
+                clone.emc = predefinedEMC;
+            }
+            else
+            {
+                clone.emc = RationalNumber.Zero; // Default to zero if not found
+            }
+
+            return clone;
         }
     }
 }
