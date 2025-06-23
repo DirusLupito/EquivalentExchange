@@ -22,7 +22,7 @@ namespace EquivalentExchange.Common.Utilities
         private const string LogFilePath = "EMCCalculator.log";
 
         // If a log file will be created and written to
-        private static bool IsLoggingEnabled = false;
+        private static bool IsLoggingEnabled = true;
 
         /// <summary>
         /// Log a message to the EMC calculation log file
@@ -189,7 +189,7 @@ namespace EquivalentExchange.Common.Utilities
             LogMessage($"Found {basicItems.Count} basic items with no recipes.");
 
             // Use some hardcoded initial values for some more common vanilla items
-            setCommonEMCValues(emcValues);
+            setPreCalculationEMCValues(emcValues);
 
             // Now lets see how much we can solve for from this set of basic items
             bool changed;
@@ -295,6 +295,10 @@ namespace EquivalentExchange.Common.Utilities
                     emcValues[item.type] = item.value > 0 ? new RationalNumber(item.value, 5) : RationalNumber.One;
                 }
             }
+
+            // Add in the final override EMC values
+            SetPostCalculationEMCValues(emcValues);
+
             long stringBuilderTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             // Log the final EMC values
             LogMessage("Final EMC values calculated:");
@@ -316,9 +320,10 @@ namespace EquivalentExchange.Common.Utilities
         }
 
         /// <summary>
-        /// This method will initialize certain items to have certain EMC values.
+        /// This method will initialize certain items to have certain EMC values,
+        /// which will then be used in the EMC calculation algorithm.
         /// </summary>
-        private static void setCommonEMCValues(Dictionary<int, RationalNumber> emcValues)
+        private static void setPreCalculationEMCValues(Dictionary<int, RationalNumber> emcValues)
         {
             // Set the four fragments to their store price divided by 5
             emcValues[ItemID.FragmentVortex] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentVortex)?.value ?? 0, 5);
@@ -395,8 +400,8 @@ namespace EquivalentExchange.Common.Utilities
             // Rotten eggs should be set at 100 rather than 1 since they are more rare than say, wood
             emcValues[ItemID.RottenEgg] = new RationalNumber(100, 1);
 
-            // Presents should be set at a high value (10000) since they can potentially be unboxed into very valuable items
-            emcValues[ItemID.Present] = new RationalNumber(10000, 1);
+            // Presents should not be learnable as they can contain either very valuable items or trash
+            emcValues[ItemID.Present] = RationalNumber.Zero;
 
             // Dog whistle is a rare drop, so 10000 seems reasonable
             emcValues[ItemID.DogWhistle] = new RationalNumber(10000, 1);
@@ -501,6 +506,21 @@ namespace EquivalentExchange.Common.Utilities
             {
                 emcValues[crateId] = RationalNumber.Zero;
             }
+        }
+
+        /// <summary>
+        /// This method will set the EMC values of item after the EMC calculation algorithm has been run.
+        /// As such, these values will not be used in the EMC calculation algorithm,
+        /// but rather will override any values that were calculated for these items.
+        /// </summary>
+        public static void SetPostCalculationEMCValues(Dictionary<int, RationalNumber> emcValues)
+        {
+            // The shellphones that come from right clicking should be worth the same as the actual shellphone from crafting
+            // since they are all essentially the same item
+            emcValues[ItemID.Shellphone] = emcValues[ItemID.ShellphoneDummy];
+            emcValues[ItemID.ShellphoneHell] = emcValues[ItemID.ShellphoneDummy];
+            emcValues[ItemID.ShellphoneOcean] = emcValues[ItemID.ShellphoneDummy];
+            emcValues[ItemID.ShellphoneSpawn] = emcValues[ItemID.ShellphoneDummy];
         }
     }
 }
