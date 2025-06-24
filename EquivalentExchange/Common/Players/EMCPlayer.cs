@@ -7,6 +7,7 @@ using System.Linq;
 using EquivalentExchange.Common.Utilities;
 using EquivalentExchange.TileEntities;
 using Terraria.DataStructures;
+using Terraria.ID;
 
 namespace EquivalentExchange.Common.Players
 {
@@ -123,6 +124,21 @@ namespace EquivalentExchange.Common.Players
                 // Skip items that have already been learned
                 if (learnedItemTypes.Contains(item.ItemType))
                     continue;
+
+                // Skip the variants of the shellphone other than the main one
+                // ItemID.Shellphone
+                // ItemID.ShellphoneHell
+                // ItemID.ShellphoneOcean
+                // ItemID.ShellphoneSpawn
+                // ItemID.ShellphoneDummy
+                if (item.ItemType == ItemID.ShellphoneHell ||
+                    item.ItemType == ItemID.ShellphoneOcean ||
+                    item.ItemType == ItemID.ShellphoneSpawn ||
+                    item.ItemType == ItemID.ShellphoneDummy)
+                {
+                    continue;
+                }
+
                 learnedItemTypes.Add(item.ItemType);
                 learnedItemEMCNumerators.Add(item.EMCValue.Numerator);
                 learnedItemEMCDenominators.Add(item.EMCValue.Denominator);
@@ -173,6 +189,20 @@ namespace EquivalentExchange.Common.Players
                         if (itemTypesAddedSoFar.Contains(itemTypes[i]))
                             continue;
 
+                        // Skip the variants of the shellphone other than the main one
+                        // ItemID.Shellphone
+                        // ItemID.ShellphoneHell
+                        // ItemID.ShellphoneOcean
+                        // ItemID.ShellphoneSpawn
+                        // ItemID.ShellphoneDummy
+                        if (itemTypes[i] == ItemID.ShellphoneHell ||
+                            itemTypes[i] == ItemID.ShellphoneOcean ||
+                            itemTypes[i] == ItemID.ShellphoneSpawn ||
+                            itemTypes[i] == ItemID.ShellphoneDummy)
+                        {
+                            continue;
+                        }
+
                         var emcValue = new RationalNumber(itemEMCNumerators[i], itemEMCDenominators[i]);
                         var key = (emcValue, itemTypes[i]);
                         var info = new LearnedItemInfo
@@ -208,6 +238,34 @@ namespace EquivalentExchange.Common.Players
         // Learn a new item
         public void LearnItem(Item item, RationalNumber emcValue)
         {
+            // Special case of the shellphones: Only learn the main one
+            // ItemID.Shellphone
+            // ItemID.ShellphoneHell
+            // ItemID.ShellphoneOcean
+            // ItemID.ShellphoneSpawn
+            // ItemID.ShellphoneDummy
+            if (item.type == ItemID.ShellphoneHell ||
+                item.type == ItemID.ShellphoneOcean ||
+                item.type == ItemID.ShellphoneSpawn ||
+                item.type == ItemID.ShellphoneDummy)
+            {
+                // Treat all shellphones as the main one
+                var shellphoneKey = (emcValue, ItemID.Shellphone);
+
+                // Only add if not already learned
+                // Also don't learn unlearnable items (e.g. items 0 emc value)
+                if (!learnedItems.ContainsKey(shellphoneKey) && emcValue > RationalNumber.Zero)
+                {
+                    learnedItems[shellphoneKey] = new LearnedItemInfo
+                    {
+                        ItemType = ItemID.Shellphone,
+                        EMCValue = emcValue,
+                        Name = item.Name
+                    };
+                }
+                return; // Skip learning the other shellphones
+            }
+
             var key = (emcValue, item.type);
 
             // Only add if not already learned
@@ -226,6 +284,15 @@ namespace EquivalentExchange.Common.Players
         // Check if player has learned an item
         public bool HasLearnedItem(int itemType)
         {
+            // Treat all shellphones as the main one
+            if (itemType == ItemID.ShellphoneHell ||
+                itemType == ItemID.ShellphoneOcean ||
+                itemType == ItemID.ShellphoneSpawn ||
+                itemType == ItemID.ShellphoneDummy)
+            {
+                itemType = ItemID.Shellphone;
+            }
+
             return learnedItems.Values.Any(item => item.ItemType == itemType);
         }
 
@@ -276,6 +343,15 @@ namespace EquivalentExchange.Common.Players
         // Unlearn an item (remove it from learned items)
         public bool UnlearnItem(int itemType)
         {
+            // Treat all shellphones as the main one
+            if (itemType == ItemID.ShellphoneHell ||
+                itemType == ItemID.ShellphoneOcean ||
+                itemType == ItemID.ShellphoneSpawn ||
+                itemType == ItemID.ShellphoneDummy)
+            {
+                itemType = ItemID.Shellphone;
+            }
+
             // Find the entry with matching item type
             var itemToRemove = learnedItems.FirstOrDefault(pair => pair.Value.ItemType == itemType);
 

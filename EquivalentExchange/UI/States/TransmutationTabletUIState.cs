@@ -12,6 +12,7 @@ using EquivalentExchange.Common.GlobalItems;
 using EquivalentExchange.Common.Systems;
 using EquivalentExchange.UI.Elements;
 using System.Linq;
+using Microsoft.Xna.Framework.Input;
 
 namespace EquivalentExchange.UI.States
 {
@@ -19,7 +20,6 @@ namespace EquivalentExchange.UI.States
     {
         // UI elements
         private UIPanel mainPanel;
-        private UIText emcStorageText;
         private UIImageButton nextPageButton;
         private UIImageButton prevPageButton;
         private UIText pageInfoText;
@@ -48,9 +48,11 @@ namespace EquivalentExchange.UI.States
         // Unlearn slot container picture
         private UIImage unlearnSlotPanelContainerPicture;
 
-        // Tracking variables
+        // Mouse position tracking variables
         private bool hoveringBurnSlot = false;
         private bool hoveringUnlearnSlot = false;
+        private bool hoveringSearchBox = false;
+        private bool hoveringEMCFractionDisplay = false;
         private int hoveringTransmutationSlot = -1;
 
         // Right-click tracking
@@ -71,6 +73,9 @@ namespace EquivalentExchange.UI.States
         private const int CONTINUOUS_ITEM_DELAY = 5; // Delay between continuous item creation (frames)
 
         private const double EXPONENTIAL_BASE_ITEM_INCREASE = 1.1; // Base for exponential growth of item creation amount
+
+        // Fraction display for EMC
+        private UIFractionDisplay emcFractionDisplay;
 
         public override void OnInitialize()
         {
@@ -150,10 +155,17 @@ namespace EquivalentExchange.UI.States
             }
 
             // EMC display (bottom left)
-            emcStorageText = new UIText("EMC: 0");
-            emcStorageText.Left.Set(0f, 0f);
-            emcStorageText.Top.Set(PANEL_HEIGHT - 50f, 0f);
-            mainPanel.Append(emcStorageText);
+            emcFractionDisplay = new UIFractionDisplay();
+            emcFractionDisplay.Left.Set(10f, 0f);
+            emcFractionDisplay.Top.Set(PANEL_HEIGHT - 60f, 0f);
+            emcFractionDisplay.Width.Set(180f, 0f);
+            emcFractionDisplay.Height.Set(50f, 0f);
+            emcFractionDisplay.TextColor = Color.White;
+            emcFractionDisplay.LineColor = new Color(255, 255, 200);
+            emcFractionDisplay.Scale = 1f;
+            emcFractionDisplay.Label = "EMC:";
+            emcFractionDisplay.LineThickness = 1;
+            mainPanel.Append(emcFractionDisplay);
 
             // Page info text (center bottom)
             pageInfoText = new UIText("Page 1");
@@ -368,8 +380,8 @@ namespace EquivalentExchange.UI.States
         {
             if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
             {
-                // Update EMC display
-                emcStorageText.SetText($"EMC: {emcPlayer.storedEMC}");
+                // Update EMC fraction display
+                emcFractionDisplay.SetFraction(emcPlayer.storedEMC);
 
                 // Update transmutation slots with the current page of items
                 UpdateTransmutationSlots(emcPlayer);
@@ -390,6 +402,33 @@ namespace EquivalentExchange.UI.States
                 // Hide the UI if inventory is closed
                 EMCUI.TransmutationTabletVisible = false;
                 return;
+            }
+
+            // Handle shift-key burning functionality
+            if (Main.keyState.IsKeyDown(Keys.LeftShift) || Main.keyState.IsKeyDown(Keys.RightShift))
+            {
+                // Check if player is holding an item
+                if (Main.mouseItem != null && !Main.mouseItem.IsAir)
+                {
+                    // Make sure the item has valid EMC value before burning
+                    if (EMCHelper.GetEMC(Main.mouseItem) > RationalNumber.Zero)
+                    {
+                        // Store a copy of the item we're burning
+                        burnSlot = Main.mouseItem.Clone();
+                        
+                        // Clear the mouse item
+                        Main.mouseItem = new Item();
+                        
+                        // Burn the item
+                        BurnCurrentItem();
+                    }
+                    else if (Main.keyState.IsKeyDown(Keys.LeftShift) && !Main.oldKeyState.IsKeyDown(Keys.LeftShift) ||
+                             Main.keyState.IsKeyDown(Keys.RightShift) && !Main.oldKeyState.IsKeyDown(Keys.RightShift))
+                    {
+                        // Only show the message once when shift is first pressed
+                        Main.NewText("You cannot transmute this item.", Color.Red);
+                    }
+                }
             }
 
             // If the player is interacting with the UI, set mouseInterface to true
@@ -475,6 +514,8 @@ namespace EquivalentExchange.UI.States
             hoveringTransmutationSlot = -1;
             hoveringBurnSlot = false;
             hoveringUnlearnSlot = false;
+            hoveringSearchBox = false;
+            hoveringEMCFractionDisplay = false;
 
             for (int i = 0; i < TRANSMUTATION_SLOT_COUNT; i++)
             {
@@ -500,8 +541,15 @@ namespace EquivalentExchange.UI.States
             // Check for search box hovering
             if (searchBoxPanel.ContainsPoint(Main.MouseScreen))
             {
-                Main.hoverItemName = "Search for items by name";
-                Main.LocalPlayer.mouseInterface = true;
+                hoveringSearchBox = true;
+                return;
+            }
+
+            // Check for EMC fraction display hovering
+            if (emcFractionDisplay.ContainsPoint(Main.MouseScreen))
+            {
+                hoveringEMCFractionDisplay = true;
+                return;
             }
         }
 
@@ -729,7 +777,7 @@ namespace EquivalentExchange.UI.States
             // Draw the item name on the mouse if hovering over slots
             if (hoveringBurnSlot)
             {
-                Main.hoverItemName = "Left-click to burn item held by mouse";
+                Main.hoverItemName = "Left-click on the slot or press shift at any point to burn item held by mouse";
             }
             else if (hoveringUnlearnSlot)
             {
@@ -752,6 +800,19 @@ namespace EquivalentExchange.UI.States
             else if (nextPageButton.IsMouseHovering)
             {
                 Main.hoverItemName = "Next Page";
+            }
+            // Show tooltip for search box
+            else if (hoveringSearchBox)
+            {
+                Main.hoverItemName = "Search for items by name";
+            }
+            // Show the current stored EMC as a double to 6 decimal places if hovering over the EMC fraction display
+            else if (hoveringEMCFractionDisplay)
+            {
+                if (Main.LocalPlayer.TryGetModPlayer(out EMCPlayer emcPlayer))
+                {
+                    Main.hoverItemName = $"Decimal EMC: {emcPlayer.storedEMC.ToDouble():F6}";
+                }
             }
         }
     }

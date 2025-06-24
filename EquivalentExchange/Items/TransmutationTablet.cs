@@ -24,9 +24,6 @@ namespace EquivalentExchange.Items
             // Philosopher's Stone (1) = 2 gold
             Item.value = Item.sellPrice(gold: 2);
             Item.rare = ItemRarityID.Orange;
-            Item.useStyle = ItemUseStyleID.HoldUp;
-            Item.useTime = 20;
-            Item.useAnimation = 20;
             Item.useTurn = true;
             Item.autoReuse = false;
         }
