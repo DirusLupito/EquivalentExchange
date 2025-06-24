@@ -325,7 +325,7 @@ namespace EquivalentExchange.Common.Utilities
         /// </summary>
         private static void setPreCalculationEMCValues(Dictionary<int, RationalNumber> emcValues)
         {
-            // Set the four fragments to their store price divided by 5
+            // Set the four fragments to their store price divided by 5 (which is their sell price)
             emcValues[ItemID.FragmentVortex] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentVortex)?.value ?? 0, 5);
             emcValues[ItemID.FragmentNebula] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentNebula)?.value ?? 0, 5);
             emcValues[ItemID.FragmentSolar] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.FragmentSolar)?.value ?? 0, 5);
@@ -344,6 +344,9 @@ namespace EquivalentExchange.Common.Utilities
             emcValues[ItemID.Cactus] = RationalNumber.One;
             emcValues[ItemID.AshWood] = RationalNumber.One;
             emcValues[ItemID.Cobweb] = RationalNumber.One;
+
+            // Glowing mushrooms should be set to their sell price
+            emcValues[ItemID.GlowingMushroom] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.GlowingMushroom)?.value ?? 0, 5);
 
             // Silk is 7 since even though its worth quite a bit, it only takes 7 cobwebs to craft
             emcValues[ItemID.Silk] = new RationalNumber(7, 1);
