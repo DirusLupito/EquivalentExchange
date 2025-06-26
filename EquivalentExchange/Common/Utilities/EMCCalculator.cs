@@ -22,7 +22,7 @@ namespace EquivalentExchange.Common.Utilities
         private const string LogFilePath = "EMCCalculator.log";
 
         // If a log file will be created and written to
-        private static bool IsLoggingEnabled = true;
+        private static bool IsLoggingEnabled = false;
 
         /// <summary>
         /// Log a message to the EMC calculation log file
