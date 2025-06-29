@@ -478,47 +478,49 @@ namespace EquivalentExchange.UI.States
 
         private void InventorySlot_OnRightClick(int slotIndex)
         {
-            if (tileEntity == null || slotIndex < 0 || slotIndex >= INVENTORY_SIZE) return;
+            // Right click behavior shall be the same as left click for now
+            InventorySlot_OnLeftClick(slotIndex);   
+            // if (tileEntity == null || slotIndex < 0 || slotIndex >= INVENTORY_SIZE) return;
 
-            Item slotItem = tileEntity.inventory[slotIndex];
+            // Item slotItem = tileEntity.inventory[slotIndex];
 
-            if (!slotItem.IsAir)
-            {
-                // Right click takes half the stack (or 1 if stack is 1)
-                int takeAmount = Math.Max(1, slotItem.stack / 2);
+            // if (!slotItem.IsAir)
+            // {
+            //     // Right click takes half the stack (or 1 if stack is 1)
+            //     int takeAmount = Math.Max(1, slotItem.stack / 2);
 
-                if (Main.mouseItem.IsAir)
-                {
-                    Main.mouseItem = slotItem.Clone();
-                    Main.mouseItem.stack = takeAmount;
-                    slotItem.stack -= takeAmount;
+            //     if (Main.mouseItem.IsAir)
+            //     {
+            //         Main.mouseItem = slotItem.Clone();
+            //         Main.mouseItem.stack = takeAmount;
+            //         slotItem.stack -= takeAmount;
 
-                    if (slotItem.stack <= 0)
-                        tileEntity.inventory[slotIndex] = new Item();
-                }
-                else if (Main.mouseItem.type == slotItem.type && Main.mouseItem.stack < Main.mouseItem.maxStack)
-                {
-                    // Add to existing stack in mouse
-                    int addAmount = Math.Min(takeAmount, Main.mouseItem.maxStack - Main.mouseItem.stack);
-                    Main.mouseItem.stack += addAmount;
-                    slotItem.stack -= addAmount;
+            //         if (slotItem.stack <= 0)
+            //             tileEntity.inventory[slotIndex] = new Item();
+            //     }
+            //     else if (Main.mouseItem.type == slotItem.type && Main.mouseItem.stack < Main.mouseItem.maxStack)
+            //     {
+            //         // Add to existing stack in mouse
+            //         int addAmount = Math.Min(takeAmount, Main.mouseItem.maxStack - Main.mouseItem.stack);
+            //         Main.mouseItem.stack += addAmount;
+            //         slotItem.stack -= addAmount;
 
-                    if (slotItem.stack <= 0)
-                        tileEntity.inventory[slotIndex] = new Item();
-                }
-            }
-            else if (!Main.mouseItem.IsAir)
-            {
-                // Right click places 1 item from mouse into empty slot
-                tileEntity.inventory[slotIndex] = Main.mouseItem.Clone();
-                tileEntity.inventory[slotIndex].stack = 1;
-                Main.mouseItem.stack--;
+            //         if (slotItem.stack <= 0)
+            //             tileEntity.inventory[slotIndex] = new Item();
+            //     }
+            // }
+            // else if (!Main.mouseItem.IsAir)
+            // {
+            //     // Right click places 1 item from mouse into empty slot
+            //     tileEntity.inventory[slotIndex] = Main.mouseItem.Clone();
+            //     tileEntity.inventory[slotIndex].stack = 1;
+            //     Main.mouseItem.stack--;
 
-                if (Main.mouseItem.stack <= 0)
-                    Main.mouseItem = new Item();
-            }
+            //     if (Main.mouseItem.stack <= 0)
+            //         Main.mouseItem = new Item();
+            // }
 
-            UpdateDisplay();
+            // UpdateDisplay();
         }
 
         public override void Update(GameTime gameTime)
