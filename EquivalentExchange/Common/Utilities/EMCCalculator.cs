@@ -22,7 +22,7 @@ namespace EquivalentExchange.Common.Utilities
         private const string LogFilePath = "EMCCalculator.log";
 
         // If a log file will be created and written to
-        private static bool IsLoggingEnabled = false;
+        private static bool IsLoggingEnabled = true;
 
         /// <summary>
         /// Log a message to the EMC calculation log file
@@ -508,6 +508,156 @@ namespace EquivalentExchange.Common.Utilities
             foreach (int crateId in fishingCrateIds)
             {
                 emcValues[crateId] = RationalNumber.Zero;
+            }
+
+            // For thorium mod compatibility:
+            // The following are set here:
+            // Base game:
+            // Marble Block
+            // Life Crystal -> affects life quartz in thorium
+            // Encumbering stone(should be fixed by annoying mud fix, costs 1 gold)
+
+            // Strider's Tear
+            // Ancient Blade
+            // Bronze Alloy Fragments 
+            // Abyssal Shadow (both types)
+            // Unstable Core
+            // Shooting Star Fragment
+            // Celestial Fragment
+            // White Dwarf Fragment
+            // Family Heirloom
+            // Dormant Hammer (used to make mjolnir = 50 gold)
+            // Smooth Coal
+            // Aquatic Depths Key
+            // Desert Key
+            // Underworld Key
+            // Marine Block
+            // Deadwood
+            // Lil' Guppy
+            // Annoying Mud (makes encumbering stone??)
+            // Evergreen Wood
+            // Yew Wood
+            // Solar Pebbles
+
+            // Check if the thorium mod is loaded
+            if (ModLoader.TryGetMod("ThoriumMod", out Mod thoriumMod))
+            {
+                // Marble is common, so its EMC is 1
+                emcValues[ItemID.MarbleBlock] = RationalNumber.One;
+                // Life crystals are worth their store price divided by 5
+                emcValues[ItemID.LifeCrystal] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.LifeCrystal)?.value ?? 0, 5);
+                emcValues[ItemID.EncumberingStone] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.EncumberingStone)?.value ?? 0, 5);
+                // Relatively rare boss summoning item, so 1000 seems reasonable
+                emcValues[thoriumMod.TryFind<ModItem>("StriderTear", out ModItem stridersTear) ? stridersTear.Type : -1] = new RationalNumber(1000, 1);
+                // Ancient Blade is yet another boss summoning item, but it should be set by setting Bronze Alloy Fragments and marble block (marble block is set above)
+
+                // First get the instance of the bronze alloy fragments so we can then get its value
+                if (thoriumMod.TryFind<ModItem>("BronzeAlloyFragments", out ModItem BronzeAlloyFragments))
+                {
+                    // Actually set the EMC value of the Bronze Alloy Fragments
+                    emcValues[BronzeAlloyFragments.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == BronzeAlloyFragments.Type)?.value ?? 0, 5);
+                }
+
+                // Both AbyssalShadow and AbyssalShadow2 shall be set to 10 silver equivalent EMC (1000)
+                if (thoriumMod.TryFind<ModItem>("AbyssalShadow", out ModItem abyssalShadow))
+                {
+                    emcValues[abyssalShadow.Type] = new RationalNumber(1000, 1);
+                }
+                if (thoriumMod.TryFind<ModItem>("AbyssalShadow2", out ModItem abyssalShadow2))
+                {
+                    emcValues[abyssalShadow2.Type] = new RationalNumber(1000, 1);
+                }
+
+                // UnstableCore is yet another boss summoning item, so 1000 seems reasonable
+                if (thoriumMod.TryFind<ModItem>("UnstableCore", out ModItem unstableCore))
+                {
+                    emcValues[unstableCore.Type] = new RationalNumber(1000, 1);
+                }
+
+                // Shooting Star, Celestial and White Dwarf fragments shall all be treated like their vanilla counterparts (the solar, vortex, nebula and stardust fragments)
+                // So they will be set to their store price divided by 5
+                if (thoriumMod.TryFind<ModItem>("ShootingStarFragment", out ModItem shootingStarFragment))
+                {
+                    emcValues[shootingStarFragment.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == shootingStarFragment.Type)?.value ?? 0, 5);
+                }
+                if (thoriumMod.TryFind<ModItem>("CelestialFragment", out ModItem celestialFragment))
+                {
+                    emcValues[celestialFragment.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == celestialFragment.Type)?.value ?? 0, 5);
+                }
+                if (thoriumMod.TryFind<ModItem>("WhiteDwarfFragment", out ModItem whiteDwarfFragment))
+                {
+                    emcValues[whiteDwarfFragment.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == whiteDwarfFragment.Type)?.value ?? 0, 5);
+                }
+
+                // Family heirloom is both a starting item, and for mediumcore characters specifically, will respawn in the inventory upon every death. Thus, they shall have emc 1
+                if (thoriumMod.TryFind<ModItem>("FamilyHeirloom", out ModItem familyHeirloom))
+                {
+                    emcValues[familyHeirloom.Type] = RationalNumber.One;
+                }
+
+                // Dormant Hammer is used to craft Mjolnir, so it should be worth the same as Mjolnir's value divided by 5
+                if (thoriumMod.TryFind<ModItem>("DormantHammer", out ModItem dormantHammer) && thoriumMod.TryFind<ModItem>("Mjolnir", out ModItem mjolnir))
+                {
+                    emcValues[dormantHammer.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == mjolnir.Type)?.value ?? 0, 5);
+                }
+
+                // Smooth Coal shall be equivalent to gel (so 1)
+                if (thoriumMod.TryFind<ModItem>("SmoothCoal", out ModItem smoothCoal))
+                {
+                    emcValues[smoothCoal.Type] = RationalNumber.One;
+                }
+
+                // Much like the vanilla keys, the thorium mod has its own keys for the aquatic depths, desert and underworld. They should be set to 1000000 due to their rarity
+                if (thoriumMod.TryFind<ModItem>("AquaticDepthsBiomeKey", out ModItem AquaticDepthsBiomeKey))
+                {
+                    emcValues[AquaticDepthsBiomeKey.Type] = new RationalNumber(1000000, 1);
+                }
+                if (thoriumMod.TryFind<ModItem>("DesertBiomeKey", out ModItem DesertBiomeKey))
+                {
+                    emcValues[DesertBiomeKey.Type] = new RationalNumber(1000000, 1);
+                }
+                if (thoriumMod.TryFind<ModItem>("UnderworldBiomeKey", out ModItem UnderworldBiomeKey))
+                {
+                    emcValues[UnderworldBiomeKey.Type] = new RationalNumber(1000000, 1);
+                }
+
+                // Marine Block is a common block, so its EMC is 1
+                if (thoriumMod.TryFind<ModItem>("MarineBlock", out ModItem marineBlock))
+                {
+                    emcValues[marineBlock.Type] = RationalNumber.One;
+                }
+
+                // Deadwood, Evergreen Wood and Yew Wood are all wood types, so their EMC is 1
+                if (thoriumMod.TryFind<ModItem>("Deadwood", out ModItem deadwood))
+                {
+                    emcValues[deadwood.Type] = RationalNumber.One;
+                }
+                if (thoriumMod.TryFind<ModItem>("EvergreenBlock", out ModItem evergreenWood))
+                {
+                    emcValues[evergreenWood.Type] = RationalNumber.One;
+                }
+                if (thoriumMod.TryFind<ModItem>("YewWood", out ModItem yewWood))
+                {
+                    emcValues[yewWood.Type] = RationalNumber.One;
+                }
+
+                // Lil' Guppy is another fish, so it should be worth 1000 due to its rarity
+                if (thoriumMod.TryFind<ModItem>("LilGuppy", out ModItem lilGuppy))
+                {
+                    emcValues[lilGuppy.Type] = new RationalNumber(1000, 1);
+                }
+
+                // 10 Annoying Mud makes the encumbering stone, and the encumbering stone is worth 1 gold, so we set the annoying mud to 1 tenth of the encumbering stone (so divide its values by 5 and then by 10)
+                if (thoriumMod.TryFind<ModItem>("AnnoyingMud", out ModItem annoyingMud))
+                {
+                    emcValues[annoyingMud.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == ItemID.EncumberingStone)?.value ?? 0, 50);
+                }
+
+                // Solar Pebbles should be set to their value divided by 5
+                if (thoriumMod.TryFind<ModItem>("SolarPebble", out ModItem solarPebble))
+                {
+                    emcValues[solarPebble.Type] = new RationalNumber(allItems.FirstOrDefault(item => item.type == solarPebble.Type)?.value ?? 0, 5);
+                }
             }
         }
 
